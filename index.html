@@ -204,7 +204,7 @@
         <div class="leg-item"><div class="leg-dot" style="background:var(--slick-color)"></div>Slick (−friction)</div>
       </div>
       <button class="btn btn-primary"   id="btnPlay">🏌️ Play Today's Round</button>
-      <button class="btn btn-secondary" id="btnProfile">👤 Profile &amp; Achievements</button>
+      <button class="btn btn-secondary" id="btnProfile" aria-label="Profile and Achievements">👤 Profile &amp; Achievements</button>
     </div>
   </div>
 
@@ -281,6 +281,9 @@ const FRICTION = {
 // XP rewards by score relative to par
 const XP_TABLE = { '-5':600,'-4':500,'-3':400,'-2':300,'-1':180, 0:100, 1:55, 2:25 };
 const XP_DEFAULT_LOW = 10;   // +3 or worse
+// Bounds must match the min/max keys in XP_TABLE
+const XP_DIFF_MIN = -5;
+const XP_DIFF_MAX = 2;
 
 // Level XP thresholds (cumulative XP needed to reach that level)
 const LEVELS = [
@@ -310,9 +313,9 @@ function mulberry32(seed) {
 }
 
 function getDailySeed() {
-  const d = new Date();
-  // YYYY * 10000 + MM * 100 + DD  → unique integer per day
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  const now = new Date();
+  // Use UTC date so all players worldwide get the same daily course
+  return now.getUTCFullYear() * 10000 + (now.getUTCMonth() + 1) * 100 + now.getUTCDate();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -630,12 +633,15 @@ function dist2(ax, ay, bx, by) {
 }
 function dist(ax, ay, bx, by) { return Math.sqrt(dist2(ax, ay, bx, by)); }
 
+/** Clamp value to [lo, hi] */
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
 /** Closest point on segment AB to point P; returns {x,y,t} */
 function closestOnSeg(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay;
   const lenSq = dx * dx + dy * dy;
   if (lenSq < 1e-10) return { x: ax, y: ay, t: 0 };
-  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  const t = clamp(((px - ax) * dx + (py - ay) * dy) / lenSq, 0, 1);
   return { x: ax + t * dx, y: ay + t * dy, t };
 }
 
@@ -705,7 +711,7 @@ function scoreTDClass(strokes, par) {
 
 function getXP(strokes, par) {
   const d = strokes - par;
-  const key = String(Math.max(-5, Math.min(2, d)));
+  const key = String(clamp(d, XP_DIFF_MIN, XP_DIFF_MAX));
   return XP_TABLE[key] !== undefined ? XP_TABLE[key] : XP_DEFAULT_LOW;
 }
 
