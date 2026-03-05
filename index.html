@@ -689,7 +689,7 @@ const OBSTACLE_CATALOG = [
   { id: 'dragon',        label: 'Dragon',                 elementTheme: 'mythology', status: 'planned' },
   { id: 'stalagmite',    label: 'Stalagmite',             elementTheme: 'cavern', status: 'implemented' },
   { id: 'golden_egg',    label: 'Golden Egg',             elementTheme: 'fairy tale', status: 'planned' },
-  { id: 'land_mine',     label: 'Land Mine',              elementTheme: 'war', status: 'planned' },
+  { id: 'land_mine',     label: 'Land Mine',              elementTheme: 'war', status: 'implemented' },
   { id: 'snowman',       label: 'Snowman',                elementTheme: 'snow', status: 'implemented' },
 ];
 
@@ -1746,6 +1746,20 @@ function placePresetObstacle(hole, c) {
     return;
   }
 
+  if (gs.editor.obstacleType === 'land_mine') {
+    pushSeg(-14, 0, 14, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'land_mine';
+      ob.blastRadius = 46;
+      ob.blastPower = clamp(motionSpeed, 0.8, 3.5);
+      ob.cooldownMs = 1400;
+      ob.lastBlastMs = 0;
+      ob.pulseMs = 0;
+    }
+    return;
+  }
+
   pushSeg(-h, 0, h, 0);
 }
 
@@ -2091,6 +2105,40 @@ function updateDynamicObstacles(hole, tSec) {
       const open = (Math.sin(tSec * speed * 2 + (Number(ob.phase) || 0)) + 1) * 0.5;
       ob.openFraction = open;
     }
+  }
+}
+
+function applyDynamicObstacleEffects(ball, hole, tSec) {
+  if (!ball || !hole || !Array.isArray(hole.obstacles)) return;
+  const now = performance.now();
+  for (const ob of hole.obstacles) {
+    if (ob.dynamicType !== 'land_mine') continue;
+    const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
+    const cooldownMs = clamp(Number(ob.cooldownMs) || 1400, 300, 5000);
+    if (d > BALL_R + 7) continue;
+    if (ob.lastBlastMs && now - ob.lastBlastMs < cooldownMs) continue;
+
+    const mx = (ob.x1 + ob.x2) * 0.5;
+    const my = (ob.y1 + ob.y2) * 0.5;
+    let nx = ball.x - mx;
+    let ny = ball.y - my;
+    const len = Math.hypot(nx, ny);
+    if (len < 1e-3) {
+      const a = (tSec || 0) * 4.7 + (Number(ob.phase) || 0);
+      nx = Math.cos(a);
+      ny = Math.sin(a);
+    } else {
+      nx /= len;
+      ny /= len;
+    }
+
+    const power = clamp(Number(ob.blastPower) || 2, 0.8, 4);
+    const kick = 0.85 + power * 0.75;
+    ball.vx += nx * kick;
+    ball.vy += ny * kick;
+    ball.moving = true;
+    ob.lastBlastMs = now;
+    ob.pulseMs = now;
   }
 }
 
@@ -3090,6 +3138,29 @@ function drawObstacles(hole) {
       ctx.fillStyle = 'rgba(190,220,245,0.9)';
       ctx.fillRect(-len2 * 0.18, -4, len2 * 0.36, 8);
       ctx.restore();
+    } else if (ob.kind === 'land_mine') {
+      const sinceBlast = ob.pulseMs ? performance.now() - ob.pulseMs : 9999;
+      const pulse = Math.max(0, 1 - sinceBlast / 360);
+      const bodyR = Math.max(8, Math.min(14, len * 0.28));
+      if (pulse > 0) {
+        ctx.strokeStyle = `rgba(255,130,90,${0.2 + pulse * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(mx, my, bodyR + 7 + pulse * 10, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(52,58,62,0.95)';
+      ctx.beginPath();
+      ctx.arc(mx, my, bodyR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(185,196,206,0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      const armed = !ob.lastBlastMs || performance.now() - ob.lastBlastMs > (Number(ob.cooldownMs) || 1400);
+      ctx.fillStyle = armed ? 'rgba(255,92,92,0.95)' : 'rgba(255,180,92,0.9)';
+      ctx.beginPath();
+      ctx.arc(mx, my - bodyR * 0.2, 2.5, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
   // Inner edge highlight
@@ -4351,6 +4422,7 @@ function gameLoop() {
     updateDynamicObstacles(hole, performance.now() / 1000);
 
     applyDynamicHazardEffects(ball, hole);
+    applyDynamicObstacleEffects(ball, hole, performance.now() / 1000);
 
     const activeFlytrap = hole.hazards.find(hz => hz.type === 'flytrap' && inHazard(ball.x, ball.y, hz));
     const flytrapFrames = Math.round((clamp(Number(activeFlytrap?.timerSec) || 1.5, 0.2, 8)) * 60);
