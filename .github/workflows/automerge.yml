@@ -1,0 +1,34 @@
+name: Auto-merge Copilot PRs
+
+# Fires whenever the Copilot agent opens or updates a PR, and again when
+# a draft PR is marked ready for review.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write       # needed to merge
+  pull-requests: write  # needed to approve / ready-for-review
+
+jobs:
+  automerge:
+    # Only run for PRs authored by the Copilot coding agent
+    if: github.actor == 'Copilot' || github.actor == 'copilot-swe-agent[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Convert draft → ready (if needed)
+        run: |
+          if gh pr view "$PR" --repo "$REPO" --json isDraft -q '.isDraft' | grep -q true; then
+            gh pr ready "$PR" --repo "$REPO"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+
+      - name: Merge PR into main
+        run: gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
