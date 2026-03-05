@@ -156,6 +156,29 @@
       padding: 4px 8px;
       line-height: 1;
     }
+    .editor-sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .editor-section {
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-dim);
+      border-radius: 9px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 6px;
+      cursor: pointer;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .editor-section.active {
+      border-color: rgba(74, 222, 128, 0.7);
+      background: rgba(74, 222, 128, 0.18);
+      color: #d9ffea;
+    }
     .editor-info-block.gone,
     .editor-build-block.gone,
     .editor-geo-block.gone,
@@ -434,6 +457,11 @@
           <option value="obstacle">Place Obstacles</option>
         </select>
       </label>
+      <div class="editor-build-block editor-sections">
+        <button class="editor-section" id="btnBuildSectionGeo" type="button">Geometry</button>
+        <button class="editor-section" id="btnBuildSectionHazard" type="button">Hazards</button>
+        <button class="editor-section" id="btnBuildSectionObstacle" type="button">Obstacles</button>
+      </div>
       <div class="editor-build-block editor-geo-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Curve Smoothness
           <input id="inpCurveSmoothness" type="number" min="1" max="5" step="1" style="width:100%;margin-top:4px">
@@ -569,6 +597,34 @@ const THEME_CATALOG = [
   'mountain', 'beach', 'underwater', 'urban', 'western', 'asian', 'factory', 'sky', 'mythology', 'cavern',
   'fairy tale', 'war', 'snow',
 ];
+
+const THEME_EMOJIS = {
+  generic: '🧩',
+  desert: '🏜️',
+  candy: '🍭',
+  jungle: '🌿',
+  lava: '🔥',
+  volcano: '🌋',
+  farm: '🚜',
+  haunted: '👻',
+  space: '🚀',
+  medieval: '🏰',
+  cyber: '🤖',
+  carnival: '🎪',
+  mountain: '⛰️',
+  beach: '🏖️',
+  underwater: '🌊',
+  urban: '🏙️',
+  western: '🤠',
+  asian: '🎎',
+  factory: '🏭',
+  sky: '☁️',
+  mythology: '⚡',
+  cavern: '🪨',
+  'fairy tale': '🧚',
+  war: '🛡️',
+  snow: '❄️',
+};
 
 const HAZARD_CATALOG = [
   { id: 'water',       label: 'Water Hazard',      elementTheme: 'generic', status: 'implemented' },
@@ -992,6 +1048,7 @@ let gs = {               // game state object
     curveSmoothness: 3,
     curveSamples: 9,
     viewTab: 'build',
+    buildSection: 'geo',
     dragVertexIdx: -1,
     wallStart: null,
     pointer: {x: 0, y: 0},
@@ -1221,6 +1278,12 @@ function formatThemeLabel(theme) {
     .join(' ');
 }
 
+function formatThemeWithEmoji(theme) {
+  const key = String(theme || 'generic');
+  const emoji = THEME_EMOJIS[key] || THEME_EMOJIS.generic;
+  return `${emoji} ${formatThemeLabel(key)}`;
+}
+
 function filteredElements(catalog, elementTheme) {
   return catalog.filter(item => {
     const t = item.elementTheme || 'generic';
@@ -1305,7 +1368,7 @@ function refreshEditorControls() {
   THEME_CATALOG.forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
-    opt.textContent = name;
+    opt.textContent = formatThemeWithEmoji(name);
     selTheme.appendChild(opt);
   });
 
@@ -1313,7 +1376,7 @@ function refreshEditorControls() {
   ELEMENT_THEME_CATALOG.forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
-    opt.textContent = formatThemeLabel(name);
+    opt.textContent = formatThemeWithEmoji(name);
     selHazTheme.appendChild(opt);
   });
 
@@ -1321,7 +1384,7 @@ function refreshEditorControls() {
   ELEMENT_THEME_CATALOG.forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
-    opt.textContent = formatThemeLabel(name);
+    opt.textContent = formatThemeWithEmoji(name);
     selObsTheme.appendChild(opt);
   });
 
@@ -1331,7 +1394,7 @@ function refreshEditorControls() {
   availableHazards.forEach(h => {
     const opt = document.createElement('option');
     opt.value = h.id;
-    const suffix = h.elementTheme && h.elementTheme !== 'generic' ? ` (${formatThemeLabel(h.elementTheme)})` : '';
+    const suffix = h.elementTheme && h.elementTheme !== 'generic' ? ` (${formatThemeWithEmoji(h.elementTheme)})` : '';
     opt.textContent = h.label + suffix;
     selHaz.appendChild(opt);
   });
@@ -1342,7 +1405,7 @@ function refreshEditorControls() {
   availableObstacles.forEach(o => {
     const opt = document.createElement('option');
     opt.value = o.id;
-    const suffix = o.elementTheme && o.elementTheme !== 'generic' ? ` (${formatThemeLabel(o.elementTheme)})` : '';
+    const suffix = o.elementTheme && o.elementTheme !== 'generic' ? ` (${formatThemeWithEmoji(o.elementTheme)})` : '';
     opt.textContent = o.label + suffix;
     selObs.appendChild(opt);
   });
@@ -1421,17 +1484,17 @@ function refreshEditorControls() {
   inpObsPath.value = String(gs.editor.obstaclePath);
 
   contextChips.innerHTML = [
-    `Hole Theme: ${formatThemeLabel(hole.theme || 'desert')}`,
-    `Hazard Theme: ${formatThemeLabel(gs.editor.hazardTheme)}`,
+    `Hole Theme: ${formatThemeWithEmoji(hole.theme || 'desert')}`,
+    `Hazard Theme: ${formatThemeWithEmoji(gs.editor.hazardTheme)}`,
     `Hazard: ${gs.editor.hazardType}`,
-    `Obstacle Theme: ${formatThemeLabel(gs.editor.obstacleTheme)}`,
+    `Obstacle Theme: ${formatThemeWithEmoji(gs.editor.obstacleTheme)}`,
     `Obstacle: ${gs.editor.obstacleType}`,
   ].map(text => `<span class="chip">${text}</span>`).join('');
 
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
     `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · ${hole.obstacles.length} obstacles · Theme ${hole.theme}. ` +
-    `Hazards: ${formatThemeLabel(gs.editor.hazardTheme)} · Obstacles: ${formatThemeLabel(gs.editor.obstacleTheme)}. ` +
+    `Hazards: ${formatThemeWithEmoji(gs.editor.hazardTheme)} · Obstacles: ${formatThemeWithEmoji(gs.editor.obstacleTheme)}. ` +
     `Pick a tool, then click/drag directly on the course to edit.`;
 
   if (hole.polygon.length > 120) {
@@ -1446,21 +1509,25 @@ function refreshEditorControls() {
   document.getElementById('btnEditorTabBuild').classList.toggle('active', gs.editor.viewTab === 'build');
   document.getElementById('btnEditorTabInfo').classList.toggle('active', gs.editor.viewTab === 'info');
 
-  const isGeo = gs.editor.tool === 'vertex' || gs.editor.tool === 'curve';
-  const showHaz = gs.editor.tool === 'hazard' || (gs.editor.tool === 'select' && gs.editor.selectedHazardIdx >= 0);
-  const showObs = gs.editor.tool === 'obstacle' || (gs.editor.tool === 'select' && gs.editor.selectedObstacleIdx >= 0);
+  const activeSection = gs.editor.buildSection || 'geo';
+  document.getElementById('btnBuildSectionGeo').classList.toggle('active', activeSection === 'geo');
+  document.getElementById('btnBuildSectionHazard').classList.toggle('active', activeSection === 'hazard');
+  document.getElementById('btnBuildSectionObstacle').classList.toggle('active', activeSection === 'obstacle');
 
   document.querySelectorAll('.editor-info-block').forEach(el => el.classList.toggle('gone', gs.editor.viewTab !== 'info'));
   document.querySelectorAll('.editor-build-block').forEach(el => el.classList.toggle('gone', gs.editor.viewTab !== 'build'));
-  document.querySelectorAll('.editor-geo-block').forEach(el => el.classList.toggle('gone', !isGeo || gs.editor.viewTab !== 'build'));
-  document.querySelectorAll('.editor-hazard-block').forEach(el => el.classList.toggle('gone', !showHaz || gs.editor.viewTab !== 'build'));
-  document.querySelectorAll('.editor-obstacle-block').forEach(el => el.classList.toggle('gone', !showObs || gs.editor.viewTab !== 'build'));
+  document.querySelectorAll('.editor-geo-block').forEach(el => el.classList.toggle('gone', activeSection !== 'geo' || gs.editor.viewTab !== 'build'));
+  document.querySelectorAll('.editor-hazard-block').forEach(el => el.classList.toggle('gone', activeSection !== 'hazard' || gs.editor.viewTab !== 'build'));
+  document.querySelectorAll('.editor-obstacle-block').forEach(el => el.classList.toggle('gone', activeSection !== 'obstacle' || gs.editor.viewTab !== 'build'));
 }
 
 function setEditorTool(tool) {
   const tools = ['select', 'vertex', 'curve', 'tee', 'cup', 'hazard', 'obstacle'];
   if (!tools.includes(tool)) return;
   gs.editor.tool = tool;
+  if (tool === 'hazard') gs.editor.buildSection = 'hazard';
+  else if (tool === 'obstacle') gs.editor.buildSection = 'obstacle';
+  else if (tool === 'vertex' || tool === 'curve') gs.editor.buildSection = 'geo';
   gs.editor.dragVertexIdx = -1;
   gs.editor.wallStart = null;
   gs.editor.curveDrag = null;
@@ -1478,6 +1545,12 @@ function cycleEditorTool(dir) {
 
 function setEditorTab(tab) {
   gs.editor.viewTab = tab === 'info' ? 'info' : 'build';
+  refreshEditorControls();
+}
+
+function setEditorBuildSection(section) {
+  if (!['geo', 'hazard', 'obstacle'].includes(section)) return;
+  gs.editor.buildSection = section;
   refreshEditorControls();
 }
 
@@ -3823,6 +3896,9 @@ document.querySelectorAll('#editorQuickTools .tool-chip[data-tool]').forEach(btn
 
 document.getElementById('btnEditorTabBuild').addEventListener('click', () => setEditorTab('build'));
 document.getElementById('btnEditorTabInfo').addEventListener('click', () => setEditorTab('info'));
+document.getElementById('btnBuildSectionGeo').addEventListener('click', () => setEditorBuildSection('geo'));
+document.getElementById('btnBuildSectionHazard').addEventListener('click', () => setEditorBuildSection('hazard'));
+document.getElementById('btnBuildSectionObstacle').addEventListener('click', () => setEditorBuildSection('obstacle'));
 
 document.getElementById('selHazardTheme').addEventListener('change', (e) => {
   gs.editor.hazardTheme = e.target.value || 'generic';
