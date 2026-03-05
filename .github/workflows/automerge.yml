@@ -1,7 +1,7 @@
 name: Auto-merge Copilot PRs
 
 # Triggers:
-#   schedule         – Runs every 5 min from main (GitHub's scheduler, no approval needed).
+#   schedule         – Runs every 15 min from main (GitHub's scheduler, no approval needed).
 #                      Finds all open Copilot PRs and merges them automatically.
 #   pull_request_target – Runs from base-branch context; no bot-approval gate.
 #   push             – Fires from pushed commit; finds the open PR for the branch.
@@ -11,7 +11,7 @@ name: Auto-merge Copilot PRs
 # triggered by GitHub's scheduler or the repo owner (not the bot actor).
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
@@ -62,7 +62,9 @@ jobs:
             if gh pr view "$PR" --repo "$REPO" --json isDraft -q '.isDraft' | grep -q true; then
               gh pr ready "$PR" --repo "$REPO"
             fi
-            gh pr merge "$PR" --repo "$REPO" --squash --delete-branch || true
+            if ! gh pr merge "$PR" --repo "$REPO" --squash --delete-branch; then
+              echo "::warning::Failed to merge PR #$PR — it may have conflicts or unmet branch protection rules."
+            fi
           done
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -82,7 +84,11 @@ jobs:
           elif [ "$EVENT" = "push" ]; then
             BRANCH="${GITHUB_REF#refs/heads/}"
             PR_NUM=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number -q '.[0].number')
-            echo "number=$PR_NUM" >> "$GITHUB_OUTPUT"
+            if [ -z "$PR_NUM" ]; then
+              echo "No open PR found for branch $BRANCH — skipping."
+            else
+              echo "number=$PR_NUM" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
           fi
