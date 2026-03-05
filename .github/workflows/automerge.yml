@@ -1,22 +1,27 @@
 name: Auto-merge Copilot PRs
 
-# Three complementary triggers:
-#   push         – fires immediately from the pushed commit (no approval needed
-#                  for same-repo pushes); finds the open PR for the branch and merges it.
-#   pull_request_target – runs from base-branch context (write perms, bypasses the
-#                  approval gate that blocks `pull_request` for bot actors).
-#   workflow_dispatch   – manual fallback: repo owner can trigger with a PR number.
+# Triggers:
+#   schedule         – Runs every 5 min from main (GitHub's scheduler, no approval needed).
+#                      Finds all open Copilot PRs and merges them automatically.
+#   pull_request_target – Runs from base-branch context; no bot-approval gate.
+#   push             – Fires from pushed commit; finds the open PR for the branch.
+#   workflow_dispatch   – Manual fallback: repo owner triggers with optional PR number.
+#
+# Note: schedule and workflow_dispatch are always approved because they are
+# triggered by GitHub's scheduler or the repo owner (not the bot actor).
 on:
+  schedule:
+    - cron: '*/5 * * * *'
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - 'copilot/**'
-  pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'PR number to merge'
-        required: true
+        description: 'PR number to merge (leave blank to merge all open Copilot PRs)'
+        required: false
         type: number
 
 permissions:
@@ -25,10 +30,12 @@ permissions:
 
 jobs:
   automerge:
+    # For schedule: always run (processes all open Copilot PRs).
+    # For workflow_dispatch: always run (maintainer-initiated).
     # For push: only run when the pusher is the Copilot coding agent.
     # For pull_request_target: only run for PRs authored by the Copilot coding agent.
-    # For workflow_dispatch: always run (maintainer-initiated).
     if: >
+      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' &&
         (github.actor == 'Copilot' || github.actor == 'copilot-swe-agent[bot]')) ||
@@ -37,13 +44,42 @@ jobs:
          github.event.pull_request.user.login == 'copilot-swe-agent[bot]'))
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve PR number
+      - name: Merge all open Copilot PRs (schedule / workflow_dispatch without PR number)
+        if: >
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' &&
+           (github.event.inputs.pr_number == '' || github.event.inputs.pr_number == null))
+        run: |
+          PR_LIST=$(gh pr list --repo "$REPO" \
+            --author "copilot-swe-agent[bot]" \
+            --state open --json number -q '.[].number')
+          if [ -z "$PR_LIST" ]; then
+            echo "No open Copilot PRs found."
+            exit 0
+          fi
+          for PR in $PR_LIST; do
+            echo "Processing PR #$PR"
+            if gh pr view "$PR" --repo "$REPO" --json isDraft -q '.isDraft' | grep -q true; then
+              gh pr ready "$PR" --repo "$REPO"
+            fi
+            gh pr merge "$PR" --repo "$REPO" --squash --delete-branch || true
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: Resolve PR number (single-PR events)
         id: pr
+        if: >
+          (github.event_name == 'workflow_dispatch' &&
+           github.event.inputs.pr_number != '' &&
+           github.event.inputs.pr_number != null) ||
+          github.event_name == 'push' ||
+          github.event_name == 'pull_request_target'
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then
             echo "number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
           elif [ "$EVENT" = "push" ]; then
-            # Find the open PR whose head branch matches the pushed branch
             BRANCH="${GITHUB_REF#refs/heads/}"
             PR_NUM=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number -q '.[0].number')
             echo "number=$PR_NUM" >> "$GITHUB_OUTPUT"
