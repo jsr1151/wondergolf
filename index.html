@@ -1754,6 +1754,21 @@ function findObstacleHandleAtPoint(hole, p) {
   let best = 14;
   for (let i = 0; i < hole.obstacles.length; i++) {
     const ob = hole.obstacles[i];
+    if (ob.dynamicType === 'car') {
+      const baseX = Number(ob.baseX);
+      const baseY = Number(ob.baseY);
+      if (Number.isFinite(baseX) && Number.isFinite(baseY)) {
+        const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
+        const pathAngle = (Number(ob.pathAngleDeg) || 0) * Math.PI / 180;
+        const hx = baseX + Math.cos(pathAngle) * pathLen * 0.5;
+        const hy = baseY + Math.sin(pathAngle) * pathLen * 0.5;
+        const hd = dist(p.x, p.y, hx, hy);
+        if (hd < best) {
+          best = hd;
+          nearest = { idx: i, part: 'path' };
+        }
+      }
+    }
     const d1 = dist(p.x, p.y, ob.x1, ob.y1);
     const d2 = dist(p.x, p.y, ob.x2, ob.y2);
     const dl = pointSegDistance(p.x, p.y, ob.x1, ob.y1, ob.x2, ob.y2);
@@ -1762,6 +1777,22 @@ function findObstacleHandleAtPoint(hole, p) {
     if (dl < best) { best = dl; nearest = { idx: i, part: 'line' }; }
   }
   return nearest;
+}
+
+function updateCarPathFromHandle(ob, p) {
+  if (!ob || ob.dynamicType !== 'car') return;
+  if (!Number.isFinite(Number(ob.baseX)) || !Number.isFinite(Number(ob.baseY))) {
+    ob.baseX = (ob.x1 + ob.x2) * 0.5;
+    ob.baseY = (ob.y1 + ob.y2) * 0.5;
+  }
+  const vx = p.x - ob.baseX;
+  const vy = p.y - ob.baseY;
+  const len = clamp(Math.sqrt(vx * vx + vy * vy) * 2, 20, 420);
+  const angle = Math.atan2(vy, vx);
+  ob.pathLen = len;
+  ob.pathAngleDeg = angle * 180 / Math.PI;
+  gs.editor.obstaclePath = Math.round(len);
+  gs.editor.obstacleAngle = Math.round(ob.pathAngleDeg);
 }
 
 function resetActiveHoleGeometryRounded() {
@@ -2800,7 +2831,7 @@ function drawEditorOverlay(hole) {
   let tip = 'Drag vertices or click to place tee/cup/hazard';
   if (gs.editor.tool === 'curve') tip = 'Click near a boundary edge, drag to bend curve, release to apply';
   if (gs.editor.tool === 'obstacle') tip = 'Use Obstacle Type controls, then click to place';
-  if (gs.editor.tool === 'select') tip = 'Click hazard/wall to select, drag handles to edit, use Delete Selected';
+  if (gs.editor.tool === 'select') tip = 'Click hazard/wall to select, drag handles to edit. Car obstacles also expose a path handle.';
   ctx.fillText(tip, 16, CH - 24);
 
   if (gs.editor.tool === 'curve' && gs.editor.curveDrag) {
@@ -2942,6 +2973,30 @@ function drawEditorOverlay(hole) {
     ctx.fillStyle = 'rgba(255,170,110,0.95)';
     ctx.beginPath(); ctx.arc(so.x1, so.y1, 5, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(so.x2, so.y2, 5, 0, Math.PI * 2); ctx.fill();
+
+    if (so.dynamicType === 'car') {
+      const baseX = Number.isFinite(Number(so.baseX)) ? Number(so.baseX) : (so.x1 + so.x2) * 0.5;
+      const baseY = Number.isFinite(Number(so.baseY)) ? Number(so.baseY) : (so.y1 + so.y2) * 0.5;
+      const pathLen = clamp(Number(so.pathLen) || 120, 20, 420);
+      const pathAngle = (Number(so.pathAngleDeg) || 0) * Math.PI / 180;
+      const p1x = baseX - Math.cos(pathAngle) * pathLen * 0.5;
+      const p1y = baseY - Math.sin(pathAngle) * pathLen * 0.5;
+      const p2x = baseX + Math.cos(pathAngle) * pathLen * 0.5;
+      const p2y = baseY + Math.sin(pathAngle) * pathLen * 0.5;
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = 'rgba(255,255,190,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p1x, p1y);
+      ctx.lineTo(p2x, p2y);
+      ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,190,0.95)';
+      ctx.beginPath(); ctx.arc(baseX, baseY, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = gs.editor.dragKind === 'ob_path' ? 'rgba(255,232,120,0.98)' : 'rgba(255,255,210,0.95)';
+      ctx.beginPath(); ctx.arc(p2x, p2y, 6, 0, Math.PI * 2); ctx.fill();
+    }
   }
   ctx.restore();
 }
@@ -3277,7 +3332,7 @@ function onPointerDown(e) {
         if (obPick.idx >= 0) {
           gs.editor.selectedObstacleIdx = obPick.idx;
           gs.editor.selectedHazardIdx = -1;
-          gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : 'ob_line';
+          gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : obPick.part === 'path' ? 'ob_path' : 'ob_line';
           gs.editor.dragDX = c.x;
           gs.editor.dragDY = c.y;
           refreshEditorControls();
@@ -3438,6 +3493,13 @@ function onPointerMove(e) {
       gs.editor.dragDX = p.x;
       gs.editor.dragDY = p.y;
       saveEditorData();
+      e.preventDefault();
+      return;
+    }
+    if (ob && gs.editor.dragKind === 'ob_path' && ob.dynamicType === 'car') {
+      updateCarPathFromHandle(ob, p);
+      saveEditorData();
+      refreshEditorControls();
       e.preventDefault();
       return;
     }
