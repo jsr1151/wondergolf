@@ -47,6 +47,20 @@
       /* scaled with JS to maintain 800×540 aspect ratio */
       cursor: crosshair;
       touch-action: none;
+      transition: transform 0.2s ease;
+    }
+    body.editor-open #gameCanvas {
+      transform: translateX(-140px);
+    }
+    @media (max-width: 1200px) {
+      body.editor-open #gameCanvas {
+        transform: translateX(-90px);
+      }
+    }
+    @media (max-width: 820px) {
+      body.editor-open #gameCanvas {
+        transform: translateX(0);
+      }
     }
     /* ── Overlay Screens ────────────────────────────────────── */
     .screen {
@@ -1009,7 +1023,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 // canvas dimensions set by resizeCanvas() to match DPR
 
-let scale = 1, offsetX = 0, offsetY = 0;
+let scale = 1;
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
@@ -1021,8 +1035,6 @@ function resizeCanvas() {
   canvas.height = Math.round(cssH * dpr);
   canvas.style.width  = cssW + 'px';
   canvas.style.height = cssH + 'px';
-  offsetX = (vw - cssW) / 2;
-  offsetY = (vh - cssH) / 2;
 }
 
 window.addEventListener('resize', resizeCanvas);
@@ -1030,9 +1042,12 @@ resizeCanvas();
 
 // Map client coords → canvas logical coords
 function toCanvas(cx, cy) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = rect.width / CW;
+  const sy = rect.height / CH;
   return {
-    x: (cx - offsetX) / scale,
-    y: (cy - offsetY) / scale,
+    x: (cx - rect.left) / sx,
+    y: (cy - rect.top) / sy,
   };
 }
 
@@ -1969,6 +1984,7 @@ function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => {
     el.classList.toggle('gone', k !== name);
   });
+  document.body.classList.toggle('editor-open', name === 'editor');
 }
 
 let _nextHoleCallback = null;
