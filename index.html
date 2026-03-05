@@ -485,6 +485,7 @@
             <option value="circle">Circle</option>
             <option value="rect">Rectangle</option>
             <option value="ellipse">Ellipse</option>
+            <option value="poly">Polygon</option>
           </select>
         </label>
         <label style="font-size:0.78rem;color:var(--text-dim)">Water Flow
@@ -544,6 +545,7 @@
       <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnRevertHole">↺ Revert Hole (Basic Rectangle + Wipe)</button>
       <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnAddVertex">＋ Add Vertex</button>
       <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnRemoveVertex">− Remove Vertex</button>
+      <button class="btn btn-secondary editor-build-block editor-hazard-block" id="btnVineShape">✦ Shape Selected Vine</button>
       <button class="btn btn-secondary editor-build-block editor-hazard-block" id="btnClearHazards">Clear Hazards</button>
       <button class="btn btn-secondary editor-build-block editor-obstacle-block" id="btnClearObstacles">Clear Obstacles</button>
       <button class="btn btn-secondary editor-build-block" id="btnDeleteSelected">Delete Selected</button>
@@ -1067,6 +1069,7 @@ let gs = {               // game state object
     pointer: {x: 0, y: 0},
     selectedHazardIdx: -1,
     selectedObstacleIdx: -1,
+    hazardPointIdx: -1,
     dragKind: '',
     dragDX: 0,
     dragDY: 0,
@@ -1468,35 +1471,13 @@ function refreshEditorControls() {
     gs.editor.hazardHidden = !!selectedHaz.hiddenInPlay;
     if (selectedHaz.shape === 'circle') {
       gs.editor.hazardRadius = Math.round(selectedHaz.r || gs.editor.hazardRadius);
+    } else if (selectedHaz.shape === 'poly') {
+      syncHazardPolyBounds(selectedHaz);
+      gs.editor.hazardW = Math.round(selectedHaz.w || gs.editor.hazardW);
+      gs.editor.hazardH = Math.round(selectedHaz.h || gs.editor.hazardH);
     } else {
       gs.editor.hazardW = Math.round(selectedHaz.w || gs.editor.hazardW);
       gs.editor.hazardH = Math.round(selectedHaz.h || gs.editor.hazardH);
-    }
-  } else if (hz.shape === 'ellipse') {
-    const cx = hz.x + hz.w * 0.5;
-    const cy = hz.y + hz.h * 0.5;
-    const rx = hz.w * 0.5;
-    const ry = hz.h * 0.5;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond']) && flowMode !== 'stagnant') {
-      const a = getHazardAngle(hz) + (flowMode === 'upstream' ? Math.PI : 0);
-      ctx.strokeStyle = 'rgba(198,237,255,0.62)';
-      ctx.lineWidth = 1.3;
-      for (let i = -1; i <= 1; i++) {
-        const ox = Math.cos(a + Math.PI * 0.5) * i * 9;
-        const oy = Math.sin(a + Math.PI * 0.5) * i * 9;
-        ctx.beginPath();
-        ctx.moveTo(cx - Math.cos(a) * rx * 0.65 + ox, cy - Math.sin(a) * ry * 0.65 + oy);
-        ctx.lineTo(cx + Math.cos(a) * rx * 0.65 + ox, cy + Math.sin(a) * ry * 0.65 + oy);
-        ctx.stroke();
-      }
     }
   } else {
     gs.editor.hazardHidden = gs.editor.hazardType === 'gravity_zone';
@@ -1512,6 +1493,8 @@ function refreshEditorControls() {
   inpHazForce.value = String(gs.editor.hazardForce);
   inpHazTimer.value = String(gs.editor.hazardTimer);
   chkHazHidden.checked = !!gs.editor.hazardHidden;
+  const btnVineShape = document.getElementById('btnVineShape');
+  if (btnVineShape) btnVineShape.disabled = !(selectedHaz && selectedHaz.type === 'vine');
   if (!availableObstacles.some(o => o.id === gs.editor.obstacleType)) {
     gs.editor.obstacleType = availableObstacles.length ? availableObstacles[0].id : 'wall';
   }
@@ -1658,14 +1641,175 @@ function getHoleAtRoundIndex(idx) {
 }
 
 function getHazardCenter(hz) {
+  if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length) {
+    let sx = 0;
+    let sy = 0;
+    for (const p of hz.points) {
+      sx += p.x;
+      sy += p.y;
+    }
+    return { x: sx / hz.points.length, y: sy / hz.points.length };
+  }
   if (hz.shape === 'circle') return { x: hz.cx, y: hz.cy };
   return { x: hz.x + hz.w / 2, y: hz.y + hz.h / 2 };
 }
 
+function getHazardPolyBounds(points) {
+  if (!Array.isArray(points) || points.length < 3) return null;
+  let minX = points[0].x;
+  let minY = points[0].y;
+  let maxX = points[0].x;
+  let maxY = points[0].y;
+  for (let i = 1; i < points.length; i++) {
+    minX = Math.min(minX, points[i].x);
+    minY = Math.min(minY, points[i].y);
+    maxX = Math.max(maxX, points[i].x);
+    maxY = Math.max(maxY, points[i].y);
+  }
+  return {
+    x: minX,
+    y: minY,
+    w: Math.max(8, maxX - minX),
+    h: Math.max(8, maxY - minY),
+  };
+}
+
+function syncHazardPolyBounds(hz) {
+  if (!hz || hz.shape !== 'poly') return;
+  const b = getHazardPolyBounds(hz.points);
+  if (!b) return;
+  hz.x = b.x;
+  hz.y = b.y;
+  hz.w = b.w;
+  hz.h = b.h;
+}
+
+function resizeHazardPoly(hz, newW, newH) {
+  if (!hz || hz.shape !== 'poly' || !Array.isArray(hz.points) || hz.points.length < 3) return;
+  syncHazardPolyBounds(hz);
+  const c = getHazardCenter(hz);
+  const oldW = Math.max(1, hz.w || newW);
+  const oldH = Math.max(1, hz.h || newH);
+  const sx = newW / oldW;
+  const sy = newH / oldH;
+  hz.points = hz.points.map(p => ({
+    x: clamp(c.x + (p.x - c.x) * sx, 10, CW - 10),
+    y: clamp(c.y + (p.y - c.y) * sy, 10, CH - 10),
+  }));
+  syncHazardPolyBounds(hz);
+}
+
+function createDefaultHazardPoly(cx, cy, w, h, sides = 6) {
+  const points = [];
+  const rx = Math.max(8, w * 0.5);
+  const ry = Math.max(8, h * 0.5);
+  for (let i = 0; i < sides; i++) {
+    const a = (i / sides) * Math.PI * 2;
+    points.push({
+      x: cx + Math.cos(a) * rx,
+      y: cy + Math.sin(a) * ry,
+    });
+  }
+  return points;
+}
+
+function shapeSelectedVineHazard() {
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (!hz || hz.type !== 'vine') return;
+  const c = getHazardCenter(hz);
+  const w = clamp(Number(hz.w) || gs.editor.hazardW || 150, 26, 420);
+  const h = clamp(Number(hz.h) || gs.editor.hazardH || 84, 22, 340);
+  const ang = getHazardAngle(hz);
+  const perp = ang + Math.PI * 0.5;
+  const pts = [];
+  const nodes = 8;
+  for (let i = 0; i < nodes; i++) {
+    const t = i / (nodes - 1);
+    const along = (t - 0.5) * w;
+    const sway = Math.sin(t * Math.PI * 2) * h * 0.22 + (Math.random() - 0.5) * h * 0.12;
+    const width = h * (0.44 + 0.24 * Math.sin(t * Math.PI));
+    const cx = c.x + Math.cos(ang) * along + Math.cos(perp) * sway;
+    const cy = c.y + Math.sin(ang) * along + Math.sin(perp) * sway;
+    pts.push({ x: cx + Math.cos(perp) * width, y: cy + Math.sin(perp) * width });
+  }
+  for (let i = nodes - 1; i >= 0; i--) {
+    const t = i / (nodes - 1);
+    const along = (t - 0.5) * w;
+    const sway = Math.sin(t * Math.PI * 2) * h * 0.22 + (Math.random() - 0.5) * h * 0.12;
+    const width = h * (0.44 + 0.24 * Math.sin(t * Math.PI));
+    const cx = c.x + Math.cos(ang) * along + Math.cos(perp) * sway;
+    const cy = c.y + Math.sin(ang) * along + Math.sin(perp) * sway;
+    pts.push({ x: cx - Math.cos(perp) * width, y: cy - Math.sin(perp) * width });
+  }
+
+  hz.shape = 'poly';
+  hz.points = pts.map(p => ({
+    x: clamp(p.x, 10, CW - 10),
+    y: clamp(p.y, 10, CH - 10),
+  }));
+  syncHazardPolyBounds(hz);
+  gs.editor.hazardShape = 'poly';
+  gs.editor.hazardW = Math.round(hz.w);
+  gs.editor.hazardH = Math.round(hz.h);
+  saveEditorData();
+  refreshEditorControls();
+}
+
 function setHazardCenter(hz, cx, cy) {
+  if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length) {
+    const c = getHazardCenter(hz);
+    const dx = cx - c.x;
+    const dy = cy - c.y;
+    hz.points = hz.points.map(p => ({
+      x: clamp(p.x + dx, 10, CW - 10),
+      y: clamp(p.y + dy, 10, CH - 10),
+    }));
+    syncHazardPolyBounds(hz);
+    return;
+  }
   if (hz.shape === 'circle') {
     hz.cx = cx;
     hz.cy = cy;
+  } else if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 3) {
+    ctx.beginPath();
+    ctx.moveTo(hz.points[0].x, hz.points[0].y);
+    for (let i = 1; i < hz.points.length; i++) ctx.lineTo(hz.points[i].x, hz.points[i].y);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    if (hz.type === 'vine') {
+      const c = getHazardCenter(hz);
+      const a = getHazardAngle(hz);
+      const n = Math.max(5, Math.floor(hz.points.length / 2));
+      ctx.strokeStyle = 'rgba(170,235,160,0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const bend = Math.sin(t * Math.PI * 3 + performance.now() / 380) * 6;
+        const px = c.x + Math.cos(a) * (t - 0.5) * hz.w * 0.95 + Math.cos(a + Math.PI * 0.5) * bend;
+        const py = c.y + Math.sin(a) * (t - 0.5) * hz.w * 0.95 + Math.sin(a + Math.PI * 0.5) * bend;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(132,208,120,0.55)';
+      for (let i = 0; i < 6; i++) {
+        const t = i / 5;
+        const px = c.x + Math.cos(a) * (t - 0.5) * hz.w * 0.8;
+        const py = c.y + Math.sin(a) * (t - 0.5) * hz.w * 0.8;
+        const la = a + (i % 2 ? 0.95 : -0.95);
+        ctx.beginPath();
+        ctx.ellipse(px + Math.cos(la) * 7, py + Math.sin(la) * 7, 5.5, 2.8, la, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   } else {
     hz.x = cx - hz.w / 2;
     hz.y = cy - hz.h / 2;
@@ -1689,6 +1833,14 @@ function getHazardResizeHandle(hz, p) {
     const hx = hz.cx + hz.r;
     const hy = hz.cy;
     if (dist(p.x, p.y, hx, hy) <= 12) return 'haz_r';
+    return '';
+  }
+
+  if (hz.shape === 'poly' && Array.isArray(hz.points)) {
+    for (let i = 0; i < hz.points.length; i++) {
+      const hp = hz.points[i];
+      if (dist(p.x, p.y, hp.x, hp.y) <= 11) return `haz_pt_${i}`;
+    }
     return '';
   }
 
@@ -2169,6 +2321,9 @@ function inEllipse(px, py, hz) {
 function inHazard(px, py, hz) {
   if (hz.shape === 'circle') return inCircle(px, py, hz);
   if (hz.shape === 'ellipse') return inEllipse(px, py, hz);
+  if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 3) {
+    return isPointInPolygon(px, py, hz.points);
+  }
   return inRect(px, py, hz);
 }
 
@@ -2185,6 +2340,11 @@ function getHazardsAtBall(ball, hole) {
 }
 
 function getHazardAngle(hz) {
+  if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 2) {
+    const a = hz.points[0];
+    const b = hz.points[Math.floor(hz.points.length * 0.5)] || hz.points[1];
+    return Math.atan2(b.y - a.y, b.x - a.x);
+  }
   return ((hz.angleDeg || 0) * Math.PI) / 180;
 }
 
@@ -2196,10 +2356,35 @@ function applyDynamicHazardEffects(ball, hole) {
 
   for (const hz of hits) {
     const force = clamp(Number(hz.force) || 1, 0, 3);
-    if (hazardMatches(hz, ['conveyor', 'vine', 'water_slide', 'minecart', 'beanstalk'])) {
+    if (hazardMatches(hz, ['conveyor', 'water_slide', 'minecart', 'beanstalk'])) {
       const a = getHazardAngle(hz);
       ball.vx += Math.cos(a) * 0.05 * force;
       ball.vy += Math.sin(a) * 0.05 * force;
+    }
+    if (hz.type === 'vine') {
+      let ax = Math.cos(getHazardAngle(hz));
+      let ay = Math.sin(getHazardAngle(hz));
+      if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 2) {
+        let best = Infinity;
+        for (let i = 0; i < hz.points.length; i++) {
+          const a = hz.points[i];
+          const b = hz.points[(i + 1) % hz.points.length];
+          const cp = closestOnSeg(ball.x, ball.y, a.x, a.y, b.x, b.y);
+          const d2 = dist2(ball.x, ball.y, cp.x, cp.y);
+          if (d2 < best) {
+            best = d2;
+            const vx = b.x - a.x;
+            const vy = b.y - a.y;
+            const vLen = Math.hypot(vx, vy) || 1;
+            ax = vx / vLen;
+            ay = vy / vLen;
+          }
+        }
+      }
+      ball.vx += ax * 0.048 * force;
+      ball.vy += ay * 0.048 * force;
+      ball.vx *= 0.94;
+      ball.vy *= 0.94;
     }
     if (hazardMatches(hz, ['wave_water', 'koi_pond'])) {
       const a = performance.now() / 700 + (hz.phase || 0);
@@ -3455,6 +3640,16 @@ function drawEditorOverlay(hole) {
       ctx.ellipse(p.x, p.y, w * 0.5, h * 0.5, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+    } else if (gs.editor.hazardShape === 'poly') {
+      const w = clamp(gs.editor.hazardW, 8, 400);
+      const h = clamp(gs.editor.hazardH, 8, 400);
+      const pts = createDefaultHazardPoly(p.x, p.y, w, h, 6);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
     } else {
       const r = clamp(gs.editor.hazardRadius, 8, 220);
       ctx.beginPath();
@@ -3523,6 +3718,24 @@ function drawEditorOverlay(hole) {
       ctx.beginPath();
       ctx.rect(hx - 4, hy - 4, 8, 8);
       ctx.fill();
+    } else if (sh.shape === 'poly' && Array.isArray(sh.points) && sh.points.length >= 3) {
+      ctx.beginPath();
+      ctx.moveTo(sh.points[0].x, sh.points[0].y);
+      for (let i = 1; i < sh.points.length; i++) ctx.lineTo(sh.points[i].x, sh.points[i].y);
+      ctx.closePath();
+      ctx.stroke();
+      const c = getHazardCenter(sh);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,240,120,0.95)';
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,200,80,0.95)';
+      sh.points.forEach((hp, idx) => {
+        const size = gs.editor.dragKind === `haz_pt_${idx}` ? 10 : 8;
+        ctx.beginPath();
+        ctx.rect(hp.x - size * 0.5, hp.y - size * 0.5, size, size);
+        ctx.fill();
+      });
     } else {
       ctx.strokeRect(sh.x - 3, sh.y - 3, sh.w + 6, sh.h + 6);
       const cx = sh.x + sh.w / 2;
@@ -3948,13 +4161,30 @@ function drawBallDeathFX() {
   const y = fx.y;
   ctx.save();
   if (fx.type === 'lava') {
+    const shake = (1 - t) * 3;
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = `rgba(62,18,10,${0.22 * (1 - t)})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 14 + t * 16, 10 + t * 12, 0, 0, Math.PI * 2);
+    ctx.fill();
     for (let i = 0; i < 7; i++) {
       const a = i * 0.9 + t * 5.5;
       const r = 4 + i * 1.6 + t * 14;
       ctx.fillStyle = i % 2 ? `rgba(255,170,84,${0.45 * (1 - t)})` : `rgba(255,96,44,${0.55 * (1 - t)})`;
       ctx.beginPath();
-      ctx.arc(x + Math.cos(a) * r * 0.3, y + Math.sin(a * 1.2) * r * 0.25, 2 + (1 - t) * 2, 0, Math.PI * 2);
+      ctx.arc(x + Math.cos(a) * r * 0.3 + Math.sin(a * 2.1) * shake, y + Math.sin(a * 1.2) * r * 0.25, 2 + (1 - t) * 2, 0, Math.PI * 2);
       ctx.fill();
+    }
+    ctx.strokeStyle = `rgba(255,210,125,${0.42 * (1 - t)})`;
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 5; i++) {
+      const a = i * (Math.PI * 2 / 5) + t * 2.2;
+      const r1 = 4 + t * 7;
+      const r2 = 10 + t * 24;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a) * r1, y + Math.sin(a) * r1);
+      ctx.lineTo(x + Math.cos(a) * r2, y + Math.sin(a) * r2);
+      ctx.stroke();
     }
   } else if (fx.type === 'flytrap') {
     ctx.fillStyle = `rgba(105,178,96,${0.5 * (1 - t)})`;
@@ -3970,6 +4200,22 @@ function drawBallDeathFX() {
     ctx.beginPath();
     ctx.arc(x, y, 10 + t * 18, 0, Math.PI * 2);
     ctx.stroke();
+  } else if (fx.type === 'water') {
+    ctx.strokeStyle = `rgba(150,214,255,${0.7 * (1 - t)})`;
+    ctx.lineWidth = 1.6;
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(x, y, 7 + i * 6 + t * 15, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = `rgba(196,236,255,${0.5 * (1 - t)})`;
+    for (let i = 0; i < 8; i++) {
+      const a = i * (Math.PI * 2 / 8) + t * 2;
+      const r = 6 + t * 22;
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.7, 1.6 + (1 - t) * 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else {
     for (let i = 0; i < 6; i++) {
       const a = i * 1.04 + t * 4;
@@ -4098,10 +4344,15 @@ function onPointerDown(e) {
         const hzHandle = getHazardResizeHandle(currentHaz, c);
         if (hzHandle) {
           gs.editor.dragKind = hzHandle;
-          if (hzHandle === 'haz_tl') gs.editor.dragAnchor = { x: currentHaz.x + currentHaz.w, y: currentHaz.y + currentHaz.h };
-          if (hzHandle === 'haz_tr') gs.editor.dragAnchor = { x: currentHaz.x, y: currentHaz.y + currentHaz.h };
-          if (hzHandle === 'haz_bl') gs.editor.dragAnchor = { x: currentHaz.x + currentHaz.w, y: currentHaz.y };
-          if (hzHandle === 'haz_br') gs.editor.dragAnchor = { x: currentHaz.x, y: currentHaz.y };
+          if (hzHandle.startsWith('haz_pt_')) {
+            gs.editor.hazardPointIdx = Number(hzHandle.slice(7));
+          } else {
+            gs.editor.hazardPointIdx = -1;
+            if (hzHandle === 'haz_tl') gs.editor.dragAnchor = { x: currentHaz.x + currentHaz.w, y: currentHaz.y + currentHaz.h };
+            if (hzHandle === 'haz_tr') gs.editor.dragAnchor = { x: currentHaz.x, y: currentHaz.y + currentHaz.h };
+            if (hzHandle === 'haz_bl') gs.editor.dragAnchor = { x: currentHaz.x + currentHaz.w, y: currentHaz.y };
+            if (hzHandle === 'haz_br') gs.editor.dragAnchor = { x: currentHaz.x, y: currentHaz.y };
+          }
           e.preventDefault();
           return;
         }
@@ -4110,6 +4361,7 @@ function onPointerDown(e) {
       if (hzIdx >= 0) {
         gs.editor.selectedHazardIdx = hzIdx;
         gs.editor.selectedObstacleIdx = -1;
+        gs.editor.hazardPointIdx = -1;
         const hz = hole.hazards[hzIdx];
         const hc = getHazardCenter(hz);
         gs.editor.dragKind = 'hazard';
@@ -4121,6 +4373,7 @@ function onPointerDown(e) {
         if (obPick.idx >= 0) {
           gs.editor.selectedObstacleIdx = obPick.idx;
           gs.editor.selectedHazardIdx = -1;
+          gs.editor.hazardPointIdx = -1;
           gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : obPick.part === 'path' ? 'ob_path' : 'ob_line';
           gs.editor.dragDX = c.x;
           gs.editor.dragDY = c.y;
@@ -4128,6 +4381,7 @@ function onPointerDown(e) {
         } else {
           gs.editor.selectedHazardIdx = -1;
           gs.editor.selectedObstacleIdx = -1;
+          gs.editor.hazardPointIdx = -1;
           refreshEditorControls();
         }
       }
@@ -4164,14 +4418,25 @@ function onPointerDown(e) {
       if (gs.editor.hazardShape !== 'circle') {
         const w = clamp(gs.editor.hazardW, 8, 400);
         const h = clamp(gs.editor.hazardH, 8, 400);
-        hole.hazards.push({
-          ...hzBase,
-          shape: gs.editor.hazardShape,
-          x: c.x - w / 2,
-          y: c.y - h / 2,
-          w,
-          h,
-        });
+        if (gs.editor.hazardShape === 'poly') {
+          const points = createDefaultHazardPoly(c.x, c.y, w, h, 6);
+          const hz = {
+            ...hzBase,
+            shape: 'poly',
+            points,
+          };
+          syncHazardPolyBounds(hz);
+          hole.hazards.push(hz);
+        } else {
+          hole.hazards.push({
+            ...hzBase,
+            shape: gs.editor.hazardShape,
+            x: c.x - w / 2,
+            y: c.y - h / 2,
+            w,
+            h,
+          });
+        }
       } else {
         hole.hazards.push({ ...hzBase, shape: 'circle', cx: c.x, cy: c.y, r: clamp(gs.editor.hazardRadius, 8, 220) });
       }
@@ -4240,10 +4505,18 @@ function onPointerMove(e) {
     if (gs.editor.selectedHazardIdx >= 0 && gs.editor.dragKind.startsWith('haz_')) {
       const hz = hole.hazards[gs.editor.selectedHazardIdx];
       if (hz) {
-        if (gs.editor.dragKind === 'haz_r' && hz.shape === 'circle') {
+        if (gs.editor.dragKind.startsWith('haz_pt_') && hz.shape === 'poly' && Array.isArray(hz.points)) {
+          const idx = Number(gs.editor.dragKind.slice(7));
+          if (idx >= 0 && idx < hz.points.length) {
+            hz.points[idx] = { x: p.x, y: p.y };
+            syncHazardPolyBounds(hz);
+            gs.editor.hazardW = Math.round(hz.w);
+            gs.editor.hazardH = Math.round(hz.h);
+          }
+        } else if (gs.editor.dragKind === 'haz_r' && hz.shape === 'circle') {
           hz.r = clamp(Math.round(dist(hz.cx, hz.cy, p.x, p.y)), 8, 220);
           gs.editor.hazardRadius = hz.r;
-        } else if (hz.shape !== 'circle' && gs.editor.dragAnchor) {
+        } else if (hz.shape !== 'circle' && hz.shape !== 'poly' && gs.editor.dragAnchor) {
           const ax = gs.editor.dragAnchor.x;
           const ay = gs.editor.dragAnchor.y;
           const x1 = Math.min(ax, p.x);
@@ -4327,6 +4600,7 @@ function onPointerUp(e) {
     }
     gs.editor.curveDrag = null;
     gs.editor.dragVertexIdx = -1;
+    gs.editor.hazardPointIdx = -1;
     gs.editor.dragKind = '';
     gs.editor.dragAnchor = null;
     e.preventDefault();
@@ -4843,11 +5117,19 @@ document.getElementById('selHazardShape').addEventListener('change', (e) => {
   if (!hz) return;
   const c = getHazardCenter(hz);
   if (gs.editor.hazardShape !== 'circle') {
+    const w = clamp(gs.editor.hazardW, 8, 400);
+    const h = clamp(gs.editor.hazardH, 8, 400);
     hz.shape = gs.editor.hazardShape;
-    hz.w = clamp(gs.editor.hazardW, 8, 400);
-    hz.h = clamp(gs.editor.hazardH, 8, 400);
-    hz.x = c.x - hz.w / 2;
-    hz.y = c.y - hz.h / 2;
+    if (hz.shape === 'poly') {
+      hz.points = createDefaultHazardPoly(c.x, c.y, w, h, 6);
+      syncHazardPolyBounds(hz);
+    } else {
+      hz.w = w;
+      hz.h = h;
+      hz.x = c.x - hz.w / 2;
+      hz.y = c.y - hz.h / 2;
+      delete hz.points;
+    }
     delete hz.cx;
     delete hz.cy;
     delete hz.r;
@@ -4856,6 +5138,7 @@ document.getElementById('selHazardShape').addEventListener('change', (e) => {
     hz.r = clamp(gs.editor.hazardRadius, 8, 220);
     hz.cx = c.x;
     hz.cy = c.y;
+    delete hz.points;
     delete hz.x;
     delete hz.y;
     delete hz.w;
@@ -4981,9 +5264,13 @@ document.getElementById('inpHazardW').addEventListener('change', (e) => {
   const hole = getActiveEditorHole();
   const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
   if (hz && hz.shape !== 'circle') {
-    const c = getHazardCenter(hz);
-    hz.w = gs.editor.hazardW;
-    hz.x = c.x - hz.w / 2;
+    if (hz.shape === 'poly') {
+      resizeHazardPoly(hz, gs.editor.hazardW, Math.max(8, hz.h || gs.editor.hazardH));
+    } else {
+      const c = getHazardCenter(hz);
+      hz.w = gs.editor.hazardW;
+      hz.x = c.x - hz.w / 2;
+    }
     saveEditorData();
   }
   refreshEditorControls();
@@ -4994,9 +5281,13 @@ document.getElementById('inpHazardH').addEventListener('change', (e) => {
   const hole = getActiveEditorHole();
   const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
   if (hz && hz.shape !== 'circle') {
-    const c = getHazardCenter(hz);
-    hz.h = gs.editor.hazardH;
-    hz.y = c.y - hz.h / 2;
+    if (hz.shape === 'poly') {
+      resizeHazardPoly(hz, Math.max(8, hz.w || gs.editor.hazardW), gs.editor.hazardH);
+    } else {
+      const c = getHazardCenter(hz);
+      hz.h = gs.editor.hazardH;
+      hz.y = c.y - hz.h / 2;
+    }
     saveEditorData();
   }
   refreshEditorControls();
@@ -5124,6 +5415,10 @@ document.getElementById('btnAutoCurve').addEventListener('click', () => {
   autoCurveActiveHole();
 });
 
+document.getElementById('btnVineShape').addEventListener('click', () => {
+  shapeSelectedVineHazard();
+});
+
 document.getElementById('btnAddVertex').addEventListener('click', () => {
   const hole = getActiveEditorHole();
   if (!hole) return;
@@ -5145,6 +5440,7 @@ document.getElementById('btnClearHazards').addEventListener('click', () => {
   if (!hole) return;
   hole.hazards = [];
   gs.editor.selectedHazardIdx = -1;
+  gs.editor.hazardPointIdx = -1;
   saveEditorData();
   refreshEditorControls();
 });
