@@ -385,6 +385,7 @@
       <div class="panel-heading">⚙ Settings</div>
       <div id="pauseHoleInfo" style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px"></div>
       <button class="btn btn-primary"   id="btnResume">▶ Resume</button>
+      <button class="btn btn-secondary gone" id="btnPauseEditor">🛠 Back To Editor</button>
       <hr class="divider">
       <button class="btn btn-secondary" id="btnPauseMenu">🏠 Main Menu</button>
     </div>
@@ -531,6 +532,7 @@
       </div>
       <button class="btn btn-primary editor-info-block" id="btnCreateCourse">＋ New 9-Hole Course</button>
       <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnResetGeometry">◯ Reset Geometry (Rounded)</button>
+      <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnRevertHole">↺ Revert Hole (Basic Rectangle + Wipe)</button>
       <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnAddVertex">＋ Add Vertex</button>
       <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnRemoveVertex">− Remove Vertex</button>
       <button class="btn btn-secondary editor-build-block editor-hazard-block" id="btnClearHazards">Clear Hazards</button>
@@ -1967,6 +1969,57 @@ function resetActiveHoleGeometryRounded() {
   updateEditorPreviewHole();
   saveEditorData();
   refreshEditorControls();
+}
+
+function revertActiveHoleBasic() {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  hole.polygon = [
+    { x: 60, y: 170 },
+    { x: 740, y: 170 },
+    { x: 740, y: 370 },
+    { x: 60, y: 370 },
+  ];
+  hole.ball = { x: 120, y: 270 };
+  hole.cup = { x: 680, y: 270 };
+  hole.hazards = [];
+  hole.obstacles = [];
+  gs.editor.selectedHazardIdx = -1;
+  gs.editor.selectedObstacleIdx = -1;
+  gs.editor.wallStart = null;
+  gs.editor.dragKind = '';
+  gs.editor.dragAnchor = null;
+  updateEditorPreviewHole();
+  saveEditorData();
+  refreshEditorControls();
+}
+
+function isPointInPolygon(px, py, poly) {
+  if (!Array.isArray(poly) || poly.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    const hit = ((yi > py) !== (yj > py)) &&
+      (px < ((xj - xi) * (py - yi)) / ((yj - yi) || 1e-9) + xi);
+    if (hit) inside = !inside;
+  }
+  return inside;
+}
+
+function isBallOutOfBounds(ball, hole) {
+  if (!ball || !hole || !Array.isArray(hole.polygon)) return false;
+  if (!Number.isFinite(ball.x) || !Number.isFinite(ball.y)) return true;
+  if (ball.x < -60 || ball.x > CW + 60 || ball.y < -60 || ball.y > CH + 60) return true;
+  if (isPointInPolygon(ball.x, ball.y, hole.polygon)) return false;
+
+  let edgeMin = Infinity;
+  for (let i = 0; i < hole.polygon.length; i++) {
+    const a = hole.polygon[i];
+    const b = hole.polygon[(i + 1) % hole.polygon.length];
+    edgeMin = Math.min(edgeMin, pointSegDistance(ball.x, ball.y, a.x, a.y, b.x, b.y));
+  }
+  return edgeMin > BALL_R + 1;
 }
 
 function getLevelInfo(xp) {
@@ -4083,11 +4136,12 @@ function onPointerUp(e) {
 }
 
 canvas.addEventListener('mousedown',  onPointerDown, { passive: false });
-canvas.addEventListener('mousemove',  onPointerMove, { passive: false });
-canvas.addEventListener('mouseup',    onPointerUp,   { passive: false });
 canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-canvas.addEventListener('touchmove',  onPointerMove, { passive: false });
-canvas.addEventListener('touchend',   onPointerUp,   { passive: false });
+window.addEventListener('mousemove',  onPointerMove, { passive: false });
+window.addEventListener('mouseup',    onPointerUp,   { passive: false });
+window.addEventListener('touchmove',  onPointerMove, { passive: false });
+window.addEventListener('touchend',   onPointerUp,   { passive: false });
+window.addEventListener('touchcancel', onPointerUp,  { passive: false });
 
 // ══════════════════════════════════════════════════════════════
 //  GAME LOGIC
@@ -4229,6 +4283,17 @@ function applyWaterPenalty() {
   // Brief flash feedback (could add visual, but stroke count is shown in HUD)
 }
 
+function applyOutOfBoundsPenalty() {
+  gs.strokes++;
+  gs.totalStrokes++;
+  gs.ball.x = gs.lastSafe.x;
+  gs.ball.y = gs.lastSafe.y;
+  gs.ball.vx = 0;
+  gs.ball.vy = 0;
+  gs.ball.moving = false;
+  gs.ballInWater = false;
+}
+
 // ══════════════════════════════════════════════════════════════
 //  SCREEN MANAGEMENT
 // ══════════════════════════════════════════════════════════════
@@ -4331,6 +4396,8 @@ function showPauseScreen() {
   document.getElementById('pauseHoleInfo').textContent = gs.editor.testing
     ? `${info} · Editor Test (press E to return)`
     : info;
+  const showEditorShortcut = gs.editor.testing || gs.roundMode === 'custom';
+  document.getElementById('btnPauseEditor').classList.toggle('gone', !showEditorShortcut);
   gs.state = State.PAUSED;
   showScreen('pause');
 }
@@ -4734,6 +4801,14 @@ document.getElementById('btnPauseMenu').addEventListener('click', () => {
   showScreen('menu');
 });
 
+document.getElementById('btnPauseEditor').addEventListener('click', () => {
+  if (gs.editor.testing) {
+    stopEditorHoleTest();
+    return;
+  }
+  showEditorScreen();
+});
+
 document.getElementById('btnSCMenu').addEventListener('click', () => {
   gs.state = State.MENU;
   showScreen('menu');
@@ -4755,6 +4830,10 @@ document.getElementById('btnCreateCourse').addEventListener('click', () => {
 
 document.getElementById('btnResetGeometry').addEventListener('click', () => {
   resetActiveHoleGeometryRounded();
+});
+
+document.getElementById('btnRevertHole').addEventListener('click', () => {
+  revertActiveHoleBasic();
 });
 
 document.getElementById('btnSmoothCurves').addEventListener('click', () => {
@@ -4922,6 +5001,10 @@ function gameLoop() {
 
     if (ball.moving) {
       physicsTick(ball, hole);
+
+      if (isBallOutOfBounds(ball, hole)) {
+        applyOutOfBoundsPenalty();
+      }
 
       const inWaterNow = !!getWaterHazard(ball, hole);
 
