@@ -342,7 +342,7 @@
           <option value="tee">Set Tee Position</option>
           <option value="cup">Set Cup Position</option>
           <option value="hazard">Place Hazard</option>
-          <option value="wall">Place Wall Segment</option>
+          <option value="obstacle">Place Obstacles</option>
         </select>
       </label>
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
@@ -365,6 +365,12 @@
           <input id="inpHazardH" type="number" min="8" max="400" step="1" style="width:100%;margin-top:4px">
         </label>
       </div>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Type (for Place Obstacles tool)
+        <select id="selEditorObstacle" style="width:100%;margin-top:4px"></select>
+      </label>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Size
+        <input id="inpObstacleSize" type="number" min="20" max="280" step="1" style="width:100%;margin-top:4px">
+      </label>
       <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
         Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Use Reset Geometry for a rounded rectangle starter hole.
       </div>
@@ -455,6 +461,14 @@ const HAZARD_CATALOG = [
   { id: 'cars',            label: 'Cars',           status: 'planned' },
   { id: 'barrier',         label: 'Barrier',        status: 'planned' },
   { id: 'bomb',            label: 'Bomb',           status: 'planned' },
+];
+
+const OBSTACLE_CATALOG = [
+  { id: 'wall',   label: 'Wall Segment (2-click)' },
+  { id: 'bar',    label: 'Barrier Bar' },
+  { id: 'gate',   label: 'Gate (double bar)' },
+  { id: 'cross',  label: 'Cross Blocker' },
+  { id: 'zigzag', label: 'Zig-Zag Pair' },
 ];
 
 const CLUBS = [
@@ -789,6 +803,8 @@ let gs = {               // game state object
     hazardRadius: 48,
     hazardW: 120,
     hazardH: 60,
+    obstacleType: 'wall',
+    obstacleSize: 120,
     dragVertexIdx: -1,
     wallStart: null,
     pointer: {x: 0, y: 0},
@@ -797,6 +813,7 @@ let gs = {               // game state object
     dragKind: '',
     dragDX: 0,
     dragDY: 0,
+    dragAnchor: null,
     testing: false,
   },
 };
@@ -972,6 +989,8 @@ function refreshEditorControls() {
   const inpHazR = document.getElementById('inpHazardRadius');
   const inpHazW = document.getElementById('inpHazardW');
   const inpHazH = document.getElementById('inpHazardH');
+  const selObs = document.getElementById('selEditorObstacle');
+  const inpObsSize = document.getElementById('inpObstacleSize');
   const summary = document.getElementById('editorSummary');
 
   selCourse.innerHTML = '';
@@ -996,6 +1015,14 @@ function refreshEditorControls() {
     opt.value = h.id;
     opt.textContent = h.label;
     selHaz.appendChild(opt);
+  });
+
+  selObs.innerHTML = '';
+  OBSTACLE_CATALOG.forEach(o => {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.label;
+    selObs.appendChild(opt);
   });
 
   const course = getActiveEditorCourse();
@@ -1040,6 +1067,8 @@ function refreshEditorControls() {
   inpHazR.value = String(gs.editor.hazardRadius);
   inpHazW.value = String(gs.editor.hazardW);
   inpHazH.value = String(gs.editor.hazardH);
+  selObs.value = gs.editor.obstacleType;
+  inpObsSize.value = String(gs.editor.obstacleSize);
 
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
@@ -1090,6 +1119,58 @@ function findHazardAtPoint(hole, p) {
     if (inHazard(p.x, p.y, hole.hazards[i])) return i;
   }
   return -1;
+}
+
+function getHazardResizeHandle(hz, p) {
+  if (hz.shape === 'circle') {
+    const hx = hz.cx + hz.r;
+    const hy = hz.cy;
+    if (dist(p.x, p.y, hx, hy) <= 12) return 'haz_r';
+    return '';
+  }
+
+  const handles = [
+    { id: 'haz_tl', x: hz.x, y: hz.y },
+    { id: 'haz_tr', x: hz.x + hz.w, y: hz.y },
+    { id: 'haz_bl', x: hz.x, y: hz.y + hz.h },
+    { id: 'haz_br', x: hz.x + hz.w, y: hz.y + hz.h },
+  ];
+  for (const h of handles) {
+    if (dist(p.x, p.y, h.x, h.y) <= 12) return h.id;
+  }
+  return '';
+}
+
+function placePresetObstacle(hole, c) {
+  const s = clamp(gs.editor.obstacleSize, 20, 280);
+  const h = s * 0.5;
+  const pushSeg = (x1, y1, x2, y2) => {
+    hole.obstacles.push({
+      x1: clamp(x1, 18, CW - 18),
+      y1: clamp(y1, 18, CH - 18),
+      x2: clamp(x2, 18, CW - 18),
+      y2: clamp(y2, 18, CH - 18),
+    });
+  };
+
+  if (gs.editor.obstacleType === 'bar') {
+    pushSeg(c.x - h, c.y, c.x + h, c.y);
+    return;
+  }
+  if (gs.editor.obstacleType === 'gate') {
+    pushSeg(c.x - h, c.y - 14, c.x + h, c.y - 14);
+    pushSeg(c.x - h, c.y + 14, c.x + h, c.y + 14);
+    return;
+  }
+  if (gs.editor.obstacleType === 'cross') {
+    pushSeg(c.x - h, c.y, c.x + h, c.y);
+    pushSeg(c.x, c.y - h, c.x, c.y + h);
+    return;
+  }
+  if (gs.editor.obstacleType === 'zigzag') {
+    pushSeg(c.x - h, c.y - 20, c.x, c.y + 20);
+    pushSeg(c.x, c.y + 20, c.x + h, c.y - 20);
+  }
 }
 
 function findObstacleHandleAtPoint(hole, p) {
@@ -1683,11 +1764,11 @@ function drawEditorOverlay(hole) {
   ctx.textAlign = 'left';
   ctx.fillText(`Editor Tool: ${gs.editor.tool}`, 16, CH - 44);
   let tip = 'Drag vertices or click to place tee/cup/hazard';
-  if (gs.editor.tool === 'wall') tip = 'Click start point, then click end point to place wall';
+  if (gs.editor.tool === 'obstacle') tip = 'Use Obstacle Type controls, then click to place';
   if (gs.editor.tool === 'select') tip = 'Click hazard/wall to select, drag handles to edit, use Delete Selected';
   ctx.fillText(tip, 16, CH - 24);
 
-  if (gs.editor.tool === 'wall' && gs.editor.wallStart) {
+  if (gs.editor.tool === 'obstacle' && gs.editor.obstacleType === 'wall' && gs.editor.wallStart) {
     ctx.strokeStyle = 'rgba(255,220,130,0.85)';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -1708,6 +1789,12 @@ function drawEditorOverlay(hole) {
       ctx.arc(sh.cx, sh.cy, 4, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255,240,120,0.95)';
       ctx.fill();
+      const hx = sh.cx + sh.r;
+      const hy = sh.cy;
+      ctx.fillStyle = 'rgba(255,200,80,0.95)';
+      ctx.beginPath();
+      ctx.rect(hx - 4, hy - 4, 8, 8);
+      ctx.fill();
     } else {
       ctx.strokeRect(sh.x - 3, sh.y - 3, sh.w + 6, sh.h + 6);
       const cx = sh.x + sh.w / 2;
@@ -1716,6 +1803,18 @@ function drawEditorOverlay(hole) {
       ctx.arc(cx, cy, 4, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(255,240,120,0.95)';
       ctx.fill();
+      const corners = [
+        { x: sh.x, y: sh.y },
+        { x: sh.x + sh.w, y: sh.y },
+        { x: sh.x, y: sh.y + sh.h },
+        { x: sh.x + sh.w, y: sh.y + sh.h },
+      ];
+      ctx.fillStyle = 'rgba(255,200,80,0.95)';
+      corners.forEach(c => {
+        ctx.beginPath();
+        ctx.rect(c.x - 4, c.y - 4, 8, 8);
+        ctx.fill();
+      });
     }
   }
 
@@ -1923,6 +2022,20 @@ function onPointerDown(e) {
     gs.editor.pointer = c;
     if (gs.editor.tool === 'select') {
       gs.editor.dragKind = '';
+      gs.editor.dragAnchor = null;
+      const currentHaz = hole.hazards[gs.editor.selectedHazardIdx];
+      if (currentHaz) {
+        const hzHandle = getHazardResizeHandle(currentHaz, c);
+        if (hzHandle) {
+          gs.editor.dragKind = hzHandle;
+          if (hzHandle === 'haz_tl') gs.editor.dragAnchor = { x: currentHaz.x + currentHaz.w, y: currentHaz.y + currentHaz.h };
+          if (hzHandle === 'haz_tr') gs.editor.dragAnchor = { x: currentHaz.x, y: currentHaz.y + currentHaz.h };
+          if (hzHandle === 'haz_bl') gs.editor.dragAnchor = { x: currentHaz.x + currentHaz.w, y: currentHaz.y };
+          if (hzHandle === 'haz_br') gs.editor.dragAnchor = { x: currentHaz.x, y: currentHaz.y };
+          e.preventDefault();
+          return;
+        }
+      }
       const hzIdx = findHazardAtPoint(hole, c);
       if (hzIdx >= 0) {
         gs.editor.selectedHazardIdx = hzIdx;
@@ -1975,16 +2088,22 @@ function onPointerDown(e) {
       }
       saveEditorData();
       refreshEditorControls();
-    } else if (gs.editor.tool === 'wall') {
-      if (!gs.editor.wallStart) {
-        gs.editor.wallStart = c;
-      } else {
-        if (dist(gs.editor.wallStart.x, gs.editor.wallStart.y, c.x, c.y) >= 6) {
-          hole.obstacles.push({ x1: gs.editor.wallStart.x, y1: gs.editor.wallStart.y, x2: c.x, y2: c.y });
-          saveEditorData();
-          refreshEditorControls();
+    } else if (gs.editor.tool === 'obstacle') {
+      if (gs.editor.obstacleType === 'wall') {
+        if (!gs.editor.wallStart) {
+          gs.editor.wallStart = c;
+        } else {
+          if (dist(gs.editor.wallStart.x, gs.editor.wallStart.y, c.x, c.y) >= 6) {
+            hole.obstacles.push({ x1: gs.editor.wallStart.x, y1: gs.editor.wallStart.y, x2: c.x, y2: c.y });
+            saveEditorData();
+            refreshEditorControls();
+          }
+          gs.editor.wallStart = null;
         }
-        gs.editor.wallStart = null;
+      } else {
+        placePresetObstacle(hole, c);
+        saveEditorData();
+        refreshEditorControls();
       }
     }
     e.preventDefault();
@@ -2029,6 +2148,32 @@ function onPointerMove(e) {
       return;
     }
 
+    if (gs.editor.selectedHazardIdx >= 0 && gs.editor.dragKind.startsWith('haz_')) {
+      const hz = hole.hazards[gs.editor.selectedHazardIdx];
+      if (hz) {
+        if (gs.editor.dragKind === 'haz_r' && hz.shape === 'circle') {
+          hz.r = clamp(Math.round(dist(hz.cx, hz.cy, p.x, p.y)), 8, 220);
+          gs.editor.hazardRadius = hz.r;
+        } else if (hz.shape === 'rect' && gs.editor.dragAnchor) {
+          const ax = gs.editor.dragAnchor.x;
+          const ay = gs.editor.dragAnchor.y;
+          const x1 = Math.min(ax, p.x);
+          const y1 = Math.min(ay, p.y);
+          const x2 = Math.max(ax, p.x);
+          const y2 = Math.max(ay, p.y);
+          hz.x = x1;
+          hz.y = y1;
+          hz.w = clamp(x2 - x1, 8, 400);
+          hz.h = clamp(y2 - y1, 8, 400);
+          gs.editor.hazardW = Math.round(hz.w);
+          gs.editor.hazardH = Math.round(hz.h);
+        }
+        saveEditorData();
+        e.preventDefault();
+        return;
+      }
+    }
+
     const ob = hole.obstacles[gs.editor.selectedObstacleIdx];
     if (ob && gs.editor.dragKind === 'ob_a') {
       ob.x1 = p.x; ob.y1 = p.y;
@@ -2063,6 +2208,7 @@ function onPointerUp(e) {
   if (gs.state === State.EDITOR) {
     gs.editor.dragVertexIdx = -1;
     gs.editor.dragKind = '';
+    gs.editor.dragAnchor = null;
     e.preventDefault();
     return;
   }
@@ -2464,6 +2610,7 @@ document.getElementById('selEditorTool').addEventListener('change', (e) => {
   gs.editor.dragVertexIdx = -1;
   gs.editor.wallStart = null;
   gs.editor.dragKind = '';
+  gs.editor.dragAnchor = null;
 });
 
 document.getElementById('selEditorHazard').addEventListener('change', (e) => {
@@ -2502,6 +2649,16 @@ document.getElementById('selHazardShape').addEventListener('change', (e) => {
     delete hz.h;
   }
   saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('selEditorObstacle').addEventListener('change', (e) => {
+  gs.editor.obstacleType = e.target.value;
+  gs.editor.wallStart = null;
+});
+
+document.getElementById('inpObstacleSize').addEventListener('change', (e) => {
+  gs.editor.obstacleSize = clamp(Number(e.target.value) || 120, 20, 280);
   refreshEditorControls();
 });
 
@@ -2627,6 +2784,7 @@ document.getElementById('btnClearObstacles').addEventListener('click', () => {
   hole.obstacles = [];
   gs.editor.selectedObstacleIdx = -1;
   gs.editor.wallStart = null;
+  gs.editor.dragAnchor = null;
   saveEditorData();
   refreshEditorControls();
 });
@@ -2644,6 +2802,7 @@ document.getElementById('btnDeleteSelected').addEventListener('click', () => {
   if (gs.editor.selectedObstacleIdx >= 0) {
     hole.obstacles.splice(gs.editor.selectedObstacleIdx, 1);
     gs.editor.selectedObstacleIdx = -1;
+    gs.editor.dragAnchor = null;
     saveEditorData();
     refreshEditorControls();
   }
