@@ -402,6 +402,14 @@
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Angle (degrees)
         <input id="inpObstacleAngle" type="number" min="-180" max="180" step="1" style="width:100%;margin-top:4px">
       </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+        <label style="font-size:0.78rem;color:var(--text-dim)">Obstacle Speed
+          <input id="inpObstacleSpeed" type="number" min="0.1" max="5" step="0.1" style="width:100%;margin-top:4px">
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Obstacle Path Len
+          <input id="inpObstaclePath" type="number" min="20" max="420" step="1" style="width:100%;margin-top:4px">
+        </label>
+      </div>
       <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
         Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Use Reset Geometry for a rounded rectangle starter hole.
       </div>
@@ -528,7 +536,7 @@ const OBSTACLE_CATALOG = [
   { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'planned' },
   { id: 'beach_ball',    label: 'Beach Ball',             elementTheme: 'beach', status: 'implemented' },
   { id: 'coral',         label: 'Coral',                  elementTheme: 'underwater', status: 'implemented' },
-  { id: 'car',           label: 'Car',                    elementTheme: 'urban', status: 'planned' },
+  { id: 'car',           label: 'Car',                    elementTheme: 'urban', status: 'implemented' },
   { id: 'cactus',        label: 'Cactus',                 elementTheme: 'western', status: 'implemented' },
   { id: 'cherry_tree',   label: 'Cherry Blossom',         elementTheme: 'asian', status: 'implemented' },
   { id: 'cogs',          label: 'Cogs',                   elementTheme: 'factory', status: 'implemented' },
@@ -890,6 +898,8 @@ let gs = {               // game state object
     obstacleType: 'wall',
     obstacleSize: 120,
     obstacleAngle: 0,
+    obstacleSpeed: 1,
+    obstaclePath: 140,
     curveSmoothness: 3,
     curveSamples: 9,
     dragVertexIdx: -1,
@@ -1188,6 +1198,8 @@ function refreshEditorControls() {
   const selObsTheme = document.getElementById('selObstacleTheme');
   const inpObsSize = document.getElementById('inpObstacleSize');
   const inpObsAngle = document.getElementById('inpObstacleAngle');
+  const inpObsSpeed = document.getElementById('inpObstacleSpeed');
+  const inpObsPath = document.getElementById('inpObstaclePath');
   const summary = document.getElementById('editorSummary');
 
   selCourse.innerHTML = '';
@@ -1306,9 +1318,16 @@ function refreshEditorControls() {
   if (!availableObstacles.some(o => o.id === gs.editor.obstacleType)) {
     gs.editor.obstacleType = availableObstacles.length ? availableObstacles[0].id : 'wall';
   }
+  const selectedObs = hole.obstacles[gs.editor.selectedObstacleIdx] || null;
+  if (selectedObs) {
+    gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+    gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
+  }
   selObs.value = gs.editor.obstacleType;
   inpObsSize.value = String(gs.editor.obstacleSize);
   inpObsAngle.value = String(gs.editor.obstacleAngle);
+  inpObsSpeed.value = String(gs.editor.obstacleSpeed);
+  inpObsPath.value = String(gs.editor.obstaclePath);
 
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
@@ -1389,6 +1408,8 @@ function getHazardResizeHandle(hz, p) {
 function placePresetObstacle(hole, c) {
   const s = clamp(gs.editor.obstacleSize, 20, 280);
   const h = s * 0.5;
+  const motionSpeed = clamp(Number(gs.editor.obstacleSpeed) || 1, 0.1, 5);
+  const motionPath = clamp(Number(gs.editor.obstaclePath) || 140, 20, 420);
   const angle = (Number(gs.editor.obstacleAngle) || 0) * Math.PI / 180;
   const cosA = Math.cos(angle);
   const sinA = Math.sin(angle);
@@ -1406,8 +1427,53 @@ function placePresetObstacle(hole, c) {
       y2: clamp(p2.y, 18, CH - 18),
       kind: gs.editor.obstacleType,
       size: s,
+      moveSpeed: motionSpeed,
+      pathLen: motionPath,
     });
   };
+
+  if (gs.editor.obstacleType === 'windmill') {
+    const makeSpoke = (baseAngle, phase)=>{
+      hole.obstacles.push({
+        x1: c.x,
+        y1: c.y,
+        x2: c.x,
+        y2: c.y,
+        kind: 'windmill',
+        size: s,
+        dynamicType: 'windmill',
+        pivotX: c.x,
+        pivotY: c.y,
+        armLen: s * 0.42,
+        baseAngle,
+        phase,
+        moveSpeed: motionSpeed,
+      });
+    };
+    makeSpoke(0, 0);
+    makeSpoke(Math.PI * 0.5, 0);
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'car') {
+    hole.obstacles.push({
+      x1: c.x - 16,
+      y1: c.y,
+      x2: c.x + 16,
+      y2: c.y,
+      kind: 'car',
+      size: s,
+      dynamicType: 'car',
+      baseX: c.x,
+      baseY: c.y,
+      bodyHalf: Math.max(10, s * 0.2),
+      pathAngleDeg: Number(gs.editor.obstacleAngle) || 0,
+      pathLen: motionPath,
+      moveSpeed: motionSpeed,
+      phase: Math.random() * Math.PI * 2,
+    });
+    return;
+  }
 
   if (gs.editor.obstacleType === 'bar') {
     pushSeg(-h, 0, h, 0);
@@ -1566,6 +1632,7 @@ function applyDynamicHazardEffects(ball, hole) {
   const hits = getHazardsAtBall(ball, hole);
   gs.visualEffect = { ink: 0, dizzy: 0, corn: 0 };
   gs.ballTint = null;
+  const now = performance.now();
 
   for (const hz of hits) {
     const force = clamp(Number(hz.force) || 1, 0, 3);
@@ -1584,12 +1651,35 @@ function applyDynamicHazardEffects(ball, hole) {
       ball.vx += Math.cos(a) * 0.08 * force;
       ball.vy += Math.sin(a) * 0.08 * force;
     }
+    if (hz.type === 'lava') {
+      const heat = Math.sin(now / 220 + (hz.phase || 0)) * 0.015 * force;
+      ball.vx += heat;
+      ball.vy -= heat * 0.6;
+    }
+    if (hz.type === 'quicksand') {
+      ball.vx *= 0.93;
+      ball.vy *= 0.93;
+    }
+    if (hz.type === 'glass') {
+      const spd = Math.hypot(ball.vx, ball.vy);
+      if (spd > 2.35 && (!hz.lastImpactMs || now - hz.lastImpactMs > 220)) {
+        hz.hp = (hz.hp === undefined ? 2 : hz.hp) - 1;
+        hz.lastImpactMs = now;
+        ball.vx *= 0.74;
+        ball.vy *= 0.74;
+        if (hz.hp <= 0) hz.broken = true;
+      }
+    }
     if (hz.type === 'paint') {
       gs.ballTint = hz.paintColor || '#ff8fb8';
     }
     if (hz.type === 'ink') gs.visualEffect.ink = 1;
     if (hz.type === 'alcohol') gs.visualEffect.dizzy = 1;
     if (hz.type === 'cornfield') gs.visualEffect.corn = 1;
+  }
+
+  if (hole.hazards.some(hz => hz.broken)) {
+    hole.hazards = hole.hazards.filter(hz => !hz.broken);
   }
 }
 
@@ -1679,6 +1769,38 @@ function getWalls(hole) {
   return walls;
 }
 
+function updateDynamicObstacles(hole, tSec) {
+  if (!hole || !Array.isArray(hole.obstacles)) return;
+  for (const ob of hole.obstacles) {
+    if (ob.dynamicType === 'windmill') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      const a = tSec * speed * 1.8 + (Number(ob.baseAngle) || 0) + (Number(ob.phase) || 0);
+      const arm = clamp(Number(ob.armLen) || 40, 10, 180);
+      const cx = clamp(Number(ob.pivotX) || 0, 18, CW - 18);
+      const cy = clamp(Number(ob.pivotY) || 0, 18, CH - 18);
+      ob.x1 = clamp(cx - Math.cos(a) * arm, 18, CW - 18);
+      ob.y1 = clamp(cy - Math.sin(a) * arm, 18, CH - 18);
+      ob.x2 = clamp(cx + Math.cos(a) * arm, 18, CW - 18);
+      ob.y2 = clamp(cy + Math.sin(a) * arm, 18, CH - 18);
+      continue;
+    }
+    if (ob.dynamicType === 'car') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
+      const a = (Number(ob.pathAngleDeg) || 0) * Math.PI / 180;
+      const travel = Math.sin(tSec * speed + (Number(ob.phase) || 0)) * (pathLen * 0.5);
+      const cx = (Number(ob.baseX) || 0) + Math.cos(a) * travel;
+      const cy = (Number(ob.baseY) || 0) + Math.sin(a) * travel;
+      const perp = a + Math.PI * 0.5;
+      const half = clamp(Number(ob.bodyHalf) || 16, 8, 48);
+      ob.x1 = clamp(cx - Math.cos(perp) * half, 18, CW - 18);
+      ob.y1 = clamp(cy - Math.sin(perp) * half, 18, CH - 18);
+      ob.x2 = clamp(cx + Math.cos(perp) * half, 18, CW - 18);
+      ob.y2 = clamp(cy + Math.sin(perp) * half, 18, CH - 18);
+    }
+  }
+}
+
 /** Determine friction coefficient for current ball position */
 function getFriction(ball, hole) {
   const hits = getHazardsAtBall(ball, hole);
@@ -1686,8 +1808,10 @@ function getFriction(ball, hole) {
     if (hazardMatches(hz, ['slick', 'ice'])) return 0.998;
     if (hazardMatches(hz, ['asphalt'])) return 0.994;
     if (hazardMatches(hz, ['gravity_zone', 'cloud'])) return 0.975;
+    if (hazardMatches(hz, ['glass'])) return 0.94;
     if (hazardMatches(hz, ['sand', 'quicksand', 'honey', 'mudpit', 'cobweb'])) return 0.87;
-    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond', 'lava', 'abyss'])) return FRICTION.water;
+    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond', 'abyss'])) return FRICTION.water;
+    if (hazardMatches(hz, ['lava'])) return 0.82;
   }
   return FRICTION.normal;
 }
@@ -1712,8 +1836,6 @@ function physicsTick(ball, hole) {
   const fr = getFriction(ball, hole);
   ball.vx *= fr;
   ball.vy *= fr;
-
-  applyDynamicHazardEffects(ball, hole);
 
   // Resolve wall collisions (multiple passes for stability)
   const walls = getWalls(hole);
@@ -2003,6 +2125,29 @@ function drawHazard(hz) {
         ctx.fill();
       }
     }
+
+    if (hz.type === 'quicksand') {
+      const t = performance.now() / 1000;
+      ctx.strokeStyle = 'rgba(80,50,24,0.4)';
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath();
+        ctx.arc(hz.cx, hz.cy, hz.r * (0.25 + i * 0.2 + 0.03 * Math.sin(t + i)), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    if (hz.type === 'lava') {
+      const t = performance.now() / 1000;
+      for (let i = 0; i < 7; i++) {
+        const a = i * 0.9 + t * 1.4;
+        const rr = hz.r * (0.2 + (i % 3) * 0.14);
+        ctx.fillStyle = i % 2 ? 'rgba(255,174,74,0.45)' : 'rgba(255,92,34,0.5)';
+        ctx.beginPath();
+        ctx.arc(hz.cx + Math.cos(a) * rr, hz.cy + Math.sin(a * 1.2) * rr, 2.4 + (i % 2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   } else {
     // rect
     ctx.fillStyle = color;
@@ -2033,6 +2178,82 @@ function drawHazard(hz) {
         const sy = hz.y + 8 + (i * 31) % (hz.h - 16);
         ctx.beginPath();
         ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    if (hz.type === 'conveyor') {
+      const a = getHazardAngle(hz);
+      const dirX = Math.cos(a), dirY = Math.sin(a);
+      const perpX = -dirY, perpY = dirX;
+      const cx = hz.x + hz.w / 2;
+      const cy = hz.y + hz.h / 2;
+      ctx.strokeStyle = 'rgba(220,247,255,0.55)';
+      ctx.lineWidth = 1.2;
+      for (let i = -2; i <= 2; i++) {
+        const ox = perpX * i * 10;
+        const oy = perpY * i * 10;
+        ctx.beginPath();
+        ctx.moveTo(cx - dirX * 24 + ox, cy - dirY * 24 + oy);
+        ctx.lineTo(cx + dirX * 24 + ox, cy + dirY * 24 + oy);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(220,247,255,0.65)';
+      ctx.beginPath();
+      ctx.moveTo(cx + dirX * 27, cy + dirY * 27);
+      ctx.lineTo(cx + dirX * 15 + perpX * 5, cy + dirY * 15 + perpY * 5);
+      ctx.lineTo(cx + dirX * 15 - perpX * 5, cy + dirY * 15 - perpY * 5);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    if (hz.type === 'glass') {
+      const hp = hz.hp === undefined ? 2 : hz.hp;
+      const crack = hp <= 1 ? 0.8 : 0.45;
+      ctx.strokeStyle = `rgba(224,244,255,${crack})`;
+      ctx.lineWidth = 1;
+      const cx = hz.x + hz.w * 0.5;
+      const cy = hz.y + hz.h * 0.5;
+      for (let i = 0; i < 6; i++) {
+        const a = i * (Math.PI * 2 / 6);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a) * hz.w * 0.45, cy + Math.sin(a) * hz.h * 0.45);
+        ctx.stroke();
+      }
+    }
+
+    if (hz.type === 'fan_zone') {
+      const a = getHazardAngle(hz);
+      const cx = hz.x + hz.w * 0.5;
+      const cy = hz.y + hz.h * 0.5;
+      const rot = performance.now() / 360;
+      ctx.strokeStyle = 'rgba(225,241,252,0.65)';
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i < 3; i++) {
+        const aa = rot + i * (Math.PI * 2 / 3);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(aa) * 10, cy + Math.sin(aa) * 10);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(225,241,252,0.4)';
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * (8 + i * 8), cy + Math.sin(a) * (8 + i * 8));
+        ctx.lineTo(cx + Math.cos(a) * (14 + i * 8), cy + Math.sin(a) * (14 + i * 8));
+        ctx.stroke();
+      }
+    }
+
+    if (hz.type === 'lava') {
+      const t = performance.now() / 1000;
+      ctx.fillStyle = 'rgba(255,173,84,0.2)';
+      for (let i = 0; i < 10; i++) {
+        const px = hz.x + 8 + ((i * 53) % Math.max(12, hz.w - 16));
+        const py = hz.y + 8 + ((i * 37 + t * 20) % Math.max(12, hz.h - 16));
+        ctx.beginPath();
+        ctx.arc(px, py, 2 + ((i + Math.floor(t)) % 2), 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -2449,6 +2670,23 @@ function drawObstacles(hole) {
       ctx.beginPath();
       ctx.arc(mx, my, 5, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (ob.kind === 'windmill') {
+      ctx.fillStyle = 'rgba(230,236,240,0.9)';
+      ctx.beginPath();
+      ctx.arc(mx, my, 5, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (ob.kind === 'car') {
+      const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      const len2 = Math.max(20, dist(ob.x1, ob.y1, ob.x2, ob.y2) * 1.9);
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(a);
+      ctx.fillStyle = 'rgba(230,92,66,0.9)';
+      roundRect(ctx, -len2 * 0.5, -6, len2, 12, 3);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(190,220,245,0.9)';
+      ctx.fillRect(-len2 * 0.18, -4, len2 * 0.36, 8);
+      ctx.restore();
     }
   }
   // Inner edge highlight
@@ -3353,6 +3591,34 @@ document.getElementById('inpObstacleSize').addEventListener('change', (e) => {
 
 document.getElementById('inpObstacleAngle').addEventListener('change', (e) => {
   gs.editor.obstacleAngle = Number(e.target.value) || 0;
+  const hole = getActiveEditorHole();
+  const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (ob && ob.dynamicType === 'car') {
+    ob.pathAngleDeg = gs.editor.obstacleAngle;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpObstacleSpeed').addEventListener('change', (e) => {
+  gs.editor.obstacleSpeed = clamp(Number(e.target.value) || 1, 0.1, 5);
+  const hole = getActiveEditorHole();
+  const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (ob) {
+    ob.moveSpeed = gs.editor.obstacleSpeed;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpObstaclePath').addEventListener('change', (e) => {
+  gs.editor.obstaclePath = clamp(Number(e.target.value) || 140, 20, 420);
+  const hole = getActiveEditorHole();
+  const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (ob) {
+    ob.pathLen = gs.editor.obstaclePath;
+    saveEditorData();
+  }
   refreshEditorControls();
 });
 
@@ -3618,6 +3884,7 @@ function gameLoop() {
   if (gs.state === State.PLAYING) {
     const ball = gs.ball;
     const hole = gs.hole;
+    updateDynamicObstacles(hole, performance.now() / 1000);
 
     applyDynamicHazardEffects(ball, hole);
 
