@@ -371,6 +371,9 @@
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Size
         <input id="inpObstacleSize" type="number" min="20" max="280" step="1" style="width:100%;margin-top:4px">
       </label>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Angle (degrees)
+        <input id="inpObstacleAngle" type="number" min="-180" max="180" step="1" style="width:100%;margin-top:4px">
+      </label>
       <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
         Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Use Reset Geometry for a rounded rectangle starter hole.
       </div>
@@ -805,6 +808,7 @@ let gs = {               // game state object
     hazardH: 60,
     obstacleType: 'wall',
     obstacleSize: 120,
+    obstacleAngle: 0,
     dragVertexIdx: -1,
     wallStart: null,
     pointer: {x: 0, y: 0},
@@ -991,6 +995,7 @@ function refreshEditorControls() {
   const inpHazH = document.getElementById('inpHazardH');
   const selObs = document.getElementById('selEditorObstacle');
   const inpObsSize = document.getElementById('inpObstacleSize');
+  const inpObsAngle = document.getElementById('inpObstacleAngle');
   const summary = document.getElementById('editorSummary');
 
   selCourse.innerHTML = '';
@@ -1069,6 +1074,7 @@ function refreshEditorControls() {
   inpHazH.value = String(gs.editor.hazardH);
   selObs.value = gs.editor.obstacleType;
   inpObsSize.value = String(gs.editor.obstacleSize);
+  inpObsAngle.value = String(gs.editor.obstacleAngle);
 
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
@@ -1144,32 +1150,41 @@ function getHazardResizeHandle(hz, p) {
 function placePresetObstacle(hole, c) {
   const s = clamp(gs.editor.obstacleSize, 20, 280);
   const h = s * 0.5;
-  const pushSeg = (x1, y1, x2, y2) => {
+  const angle = (Number(gs.editor.obstacleAngle) || 0) * Math.PI / 180;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const rot = (dx, dy) => ({
+    x: c.x + dx * cosA - dy * sinA,
+    y: c.y + dx * sinA + dy * cosA,
+  });
+  const pushSeg = (dx1, dy1, dx2, dy2) => {
+    const p1 = rot(dx1, dy1);
+    const p2 = rot(dx2, dy2);
     hole.obstacles.push({
-      x1: clamp(x1, 18, CW - 18),
-      y1: clamp(y1, 18, CH - 18),
-      x2: clamp(x2, 18, CW - 18),
-      y2: clamp(y2, 18, CH - 18),
+      x1: clamp(p1.x, 18, CW - 18),
+      y1: clamp(p1.y, 18, CH - 18),
+      x2: clamp(p2.x, 18, CW - 18),
+      y2: clamp(p2.y, 18, CH - 18),
     });
   };
 
   if (gs.editor.obstacleType === 'bar') {
-    pushSeg(c.x - h, c.y, c.x + h, c.y);
+    pushSeg(-h, 0, h, 0);
     return;
   }
   if (gs.editor.obstacleType === 'gate') {
-    pushSeg(c.x - h, c.y - 14, c.x + h, c.y - 14);
-    pushSeg(c.x - h, c.y + 14, c.x + h, c.y + 14);
+    pushSeg(-h, -14, h, -14);
+    pushSeg(-h, 14, h, 14);
     return;
   }
   if (gs.editor.obstacleType === 'cross') {
-    pushSeg(c.x - h, c.y, c.x + h, c.y);
-    pushSeg(c.x, c.y - h, c.x, c.y + h);
+    pushSeg(-h, 0, h, 0);
+    pushSeg(0, -h, 0, h);
     return;
   }
   if (gs.editor.obstacleType === 'zigzag') {
-    pushSeg(c.x - h, c.y - 20, c.x, c.y + 20);
-    pushSeg(c.x, c.y + 20, c.x + h, c.y - 20);
+    pushSeg(-h, -20, 0, 20);
+    pushSeg(0, 20, h, -20);
   }
 }
 
@@ -2659,6 +2674,11 @@ document.getElementById('selEditorObstacle').addEventListener('change', (e) => {
 
 document.getElementById('inpObstacleSize').addEventListener('change', (e) => {
   gs.editor.obstacleSize = clamp(Number(e.target.value) || 120, 20, 280);
+  refreshEditorControls();
+});
+
+document.getElementById('inpObstacleAngle').addEventListener('change', (e) => {
+  gs.editor.obstacleAngle = Number(e.target.value) || 0;
   refreshEditorControls();
 });
 
