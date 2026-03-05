@@ -1,10 +1,28 @@
 name: Auto-merge Copilot PRs
 
-# Fires whenever the Copilot agent opens or updates a PR, and again when
-# a draft PR is marked ready for review.
+# Triggers:
+#   schedule         – Runs every 15 min from main (GitHub's scheduler, no approval needed).
+#                      Finds all open Copilot PRs and merges them automatically.
+#   pull_request_target – Runs from base-branch context; no bot-approval gate.
+#   push             – Fires from pushed commit; finds the open PR for the branch.
+#   workflow_dispatch   – Manual fallback: repo owner triggers with optional PR number.
+#
+# Note: schedule and workflow_dispatch are always approved because they are
+# triggered by GitHub's scheduler or the repo owner (not the bot actor).
 on:
-  pull_request:
+  schedule:
+    - cron: '*/15 * * * *'
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - 'copilot/**'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to merge (leave blank to merge all open Copilot PRs)'
+        required: false
+        type: number
 
 permissions:
   contents: write       # needed to merge
@@ -12,23 +30,88 @@ permissions:
 
 jobs:
   automerge:
-    # Only run for PRs authored by the Copilot coding agent
-    if: github.actor == 'Copilot' || github.actor == 'copilot-swe-agent[bot]'
+    # For schedule: always run (processes all open Copilot PRs).
+    # For workflow_dispatch: always run (maintainer-initiated).
+    # For push: only run when the pusher is the Copilot coding agent.
+    # For pull_request_target: only run for PRs authored by the Copilot coding agent.
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+        (github.actor == 'Copilot' || github.actor == 'copilot-swe-agent[bot]')) ||
+      (github.event_name == 'pull_request_target' &&
+        (github.event.pull_request.user.login == 'Copilot' ||
+         github.event.pull_request.user.login == 'copilot-swe-agent[bot]'))
     runs-on: ubuntu-latest
     steps:
+      - name: Merge all open Copilot PRs (schedule / workflow_dispatch without PR number)
+        if: >
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' &&
+           (github.event.inputs.pr_number == '' || github.event.inputs.pr_number == null))
+        run: |
+          PR_LIST=$(gh pr list --repo "$REPO" \
+            --author "copilot-swe-agent[bot]" \
+            --state open --json number -q '.[].number')
+          if [ -z "$PR_LIST" ]; then
+            echo "No open Copilot PRs found."
+            exit 0
+          fi
+          for PR in $PR_LIST; do
+            echo "Processing PR #$PR"
+            if gh pr view "$PR" --repo "$REPO" --json isDraft -q '.isDraft' | grep -q true; then
+              gh pr ready "$PR" --repo "$REPO"
+            fi
+            if ! gh pr merge "$PR" --repo "$REPO" --squash --delete-branch; then
+              echo "::warning::Failed to merge PR #$PR — it may have conflicts or unmet branch protection rules."
+            fi
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: Resolve PR number (single-PR events)
+        id: pr
+        if: >
+          (github.event_name == 'workflow_dispatch' &&
+           github.event.inputs.pr_number != '' &&
+           github.event.inputs.pr_number != null) ||
+          github.event_name == 'push' ||
+          github.event_name == 'pull_request_target'
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = "push" ]; then
+            BRANCH="${GITHUB_REF#refs/heads/}"
+            PR_NUM=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number -q '.[0].number')
+            if [ -z "$PR_NUM" ]; then
+              echo "No open PR found for branch $BRANCH — skipping."
+            else
+              echo "number=$PR_NUM" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+
       - name: Convert draft → ready (if needed)
+        if: steps.pr.outputs.number != ''
         run: |
           if gh pr view "$PR" --repo "$REPO" --json isDraft -q '.isDraft' | grep -q true; then
             gh pr ready "$PR" --repo "$REPO"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ steps.pr.outputs.number }}
           REPO: ${{ github.repository }}
 
       - name: Merge PR into main
+        if: steps.pr.outputs.number != ''
         run: gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ steps.pr.outputs.number }}
           REPO: ${{ github.repository }}
