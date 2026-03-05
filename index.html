@@ -274,7 +274,44 @@
     <div class="panel panel-wide">
       <div class="panel-heading">🛠 Course Editor</div>
       <div id="editorSummary" style="font-size:0.85rem;color:var(--text-dim);line-height:1.45;margin-bottom:12px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+        <label style="font-size:0.78rem;color:var(--text-dim)">Course
+          <select id="selEditorCourse" style="width:100%;margin-top:4px"></select>
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Hole
+          <select id="selEditorHole" style="width:100%;margin-top:4px"></select>
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Theme
+          <select id="selEditorTheme" style="width:100%;margin-top:4px"></select>
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Par
+          <input id="inpEditorPar" type="number" min="1" max="8" style="width:100%;margin-top:4px">
+        </label>
+      </div>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Course Name
+        <input id="inpEditorCourseName" type="text" maxlength="40" style="width:100%;margin-top:4px">
+      </label>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Tool
+        <select id="selEditorTool" style="width:100%;margin-top:4px">
+          <option value="vertex">Move Vertices</option>
+          <option value="tee">Set Tee Position</option>
+          <option value="cup">Set Cup Position</option>
+          <option value="hazard">Place Hazard</option>
+        </select>
+      </label>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
+        <select id="selEditorHazard" style="width:100%;margin-top:4px"></select>
+      </label>
+      <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
+        Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Use Reset Geometry for a rounded rectangle starter hole.
+      </div>
       <button class="btn btn-primary" id="btnCreateCourse">＋ New 9-Hole Course</button>
+      <button class="btn btn-secondary" id="btnResetGeometry">◯ Reset Geometry (Rounded)</button>
+      <button class="btn btn-secondary" id="btnAddVertex">＋ Add Vertex</button>
+      <button class="btn btn-secondary" id="btnRemoveVertex">− Remove Vertex</button>
+      <button class="btn btn-secondary" id="btnClearHazards">Clear Hazards</button>
+      <button class="btn btn-secondary" id="btnTestHole">▶ Test This Hole</button>
+      <button class="btn btn-secondary" id="btnStopTest">■ Stop Testing</button>
       <button class="btn btn-secondary" id="btnExportCourses">📦 Export JSON to Console</button>
       <button class="btn btn-secondary" id="btnDeleteCourses">🗑 Delete All Custom Courses</button>
       <hr class="divider">
@@ -378,6 +415,35 @@ const BATTLEPASS = {
     { tier: 10, free: { type: 'title', id: 'Course Artist' }, premium: { type: 'title', id: 'Master Patron' } },
   ],
 };
+
+const THEME_STYLES = {
+  desert:     { feltA: '#8a6f3e', feltB: '#6f552c', edgeA: '#3d2e18', edgeB: '#b28c4c' },
+  candy:      { feltA: '#f7a3c6', feltB: '#f57fb2', edgeA: '#6f2d50', edgeB: '#ffd1e3' },
+  jungle:     { feltA: '#2f6b38', feltB: '#1f4f2b', edgeA: '#0e2414', edgeB: '#6fbf7d' },
+  lava:       { feltA: '#8f2d16', feltB: '#5d1409', edgeA: '#2a0804', edgeB: '#ff824d' },
+  farm:       { feltA: '#5d8c3d', feltB: '#43682c', edgeA: '#213315', edgeB: '#9cd06a' },
+  haunted:    { feltA: '#3d3b52', feltB: '#252336', edgeA: '#12111d', edgeB: '#6f6d95' },
+  space:      { feltA: '#25385f', feltB: '#151f3f', edgeA: '#080d21', edgeB: '#6d8bd7' },
+  medieval:   { feltA: '#5c6d4a', feltB: '#3f4e33', edgeA: '#1a2515', edgeB: '#9ab080' },
+  cyber:      { feltA: '#195b62', feltB: '#0f3a43', edgeA: '#061b20', edgeB: '#50dbe9' },
+  carnival:   { feltA: '#ac3c60', feltB: '#7f2a47', edgeA: '#35111e', edgeB: '#ff8aae' },
+  mountain:   { feltA: '#4d6b72', feltB: '#324d53', edgeA: '#16272b', edgeB: '#81aab4' },
+  beach:      { feltA: '#c6ab66', feltB: '#9f864f', edgeA: '#43351f', edgeB: '#f0d896' },
+  underwater: { feltA: '#1f5f7e', feltB: '#13455d', edgeA: '#092130', edgeB: '#74bde8' },
+  urban:      { feltA: '#5e6168', feltB: '#44474d', edgeA: '#1f2126', edgeB: '#9ba1ad' },
+  western:    { feltA: '#93613d', feltB: '#73472c', edgeA: '#2f1b10', edgeB: '#d59a6b' },
+  asian:      { feltA: '#4d7446', feltB: '#375635', edgeA: '#172715', edgeB: '#9fd18c' },
+  factory:    { feltA: '#5f6a71', feltB: '#414b52', edgeA: '#1a1f24', edgeB: '#98a7b5' },
+  sky:        { feltA: '#7cb7d8', feltB: '#5595bc', edgeA: '#1d4057', edgeB: '#d5f1ff' },
+  mythology:  { feltA: '#6b568c', feltB: '#4e3b6b', edgeA: '#1e1530', edgeB: '#b89ee3' },
+  cavern:     { feltA: '#4f473d', feltB: '#393328', edgeA: '#17130d', edgeB: '#837660' },
+  'fairy tale': { feltA: '#7c5ca3', feltB: '#5a3f7d', edgeA: '#231634', edgeB: '#d0b4f2' },
+  war:        { feltA: '#4e5a43', feltB: '#394131', edgeA: '#171d13', edgeB: '#818f70' },
+};
+
+function getThemeStyle(themeName) {
+  return THEME_STYLES[themeName] || THEME_STYLES.jungle;
+}
 
 // ══════════════════════════════════════════════════════════════
 //  SEEDED PRNG (mulberry32)
@@ -646,6 +712,14 @@ let gs = {               // game state object
   // Flags
   ballInWater: false,
   customCourses: [],
+  editor: {
+    courseIdx: 0,
+    holeIdx: 0,
+    tool: 'vertex',
+    hazardType: 'sand',
+    dragVertexIdx: -1,
+    testing: false,
+  },
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -746,6 +820,144 @@ function makeBlankCourse() {
     createdAt: Date.now(),
     holes: Array.from({ length: HOLES_PER_ROUND }, (_, i) => makeBlankHole(i)),
   };
+}
+
+function roundedRectPolygon(x, y, w, h, r, segPerCorner = 4) {
+  const rad = Math.max(8, Math.min(r, Math.min(w, h) * 0.45));
+  const pts = [];
+  const corners = [
+    { cx: x + w - rad, cy: y + rad, start: -Math.PI / 2, end: 0 },
+    { cx: x + w - rad, cy: y + h - rad, start: 0, end: Math.PI / 2 },
+    { cx: x + rad, cy: y + h - rad, start: Math.PI / 2, end: Math.PI },
+    { cx: x + rad, cy: y + rad, start: Math.PI, end: Math.PI * 1.5 },
+  ];
+  for (const c of corners) {
+    for (let i = 0; i <= segPerCorner; i++) {
+      const t = i / segPerCorner;
+      const a = c.start + (c.end - c.start) * t;
+      pts.push({ x: Math.round(c.cx + Math.cos(a) * rad), y: Math.round(c.cy + Math.sin(a) * rad) });
+    }
+  }
+  return pts;
+}
+
+function clampPointToCanvas(p) {
+  return {
+    x: Math.round(clamp(p.x, 18, CW - 18)),
+    y: Math.round(clamp(p.y, 18, CH - 18)),
+  };
+}
+
+function getActiveEditorCourse() {
+  if (!gs.customCourses.length) return null;
+  gs.editor.courseIdx = clamp(gs.editor.courseIdx, 0, gs.customCourses.length - 1);
+  return gs.customCourses[gs.editor.courseIdx];
+}
+
+function getActiveEditorHole() {
+  const course = getActiveEditorCourse();
+  if (!course || !Array.isArray(course.holes) || !course.holes.length) return null;
+  gs.editor.holeIdx = clamp(gs.editor.holeIdx, 0, course.holes.length - 1);
+  return course.holes[gs.editor.holeIdx];
+}
+
+function updateEditorPreviewHole() {
+  const hole = getActiveEditorHole();
+  if (!hole) {
+    gs.hole = null;
+    return;
+  }
+  gs.hole = hole;
+  gs.ball = {
+    x: hole.ball.x,
+    y: hole.ball.y,
+    vx: 0,
+    vy: 0,
+    moving: false,
+  };
+  gs.strokes = 0;
+}
+
+function saveEditorData() {
+  saveCustomCourses(gs.customCourses);
+}
+
+function refreshEditorControls() {
+  const selCourse = document.getElementById('selEditorCourse');
+  const selHole = document.getElementById('selEditorHole');
+  const selTheme = document.getElementById('selEditorTheme');
+  const inpPar = document.getElementById('inpEditorPar');
+  const inpCourseName = document.getElementById('inpEditorCourseName');
+  const selHaz = document.getElementById('selEditorHazard');
+  const summary = document.getElementById('editorSummary');
+
+  selCourse.innerHTML = '';
+  gs.customCourses.forEach((c, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = c.name || `Custom Course ${i + 1}`;
+    selCourse.appendChild(opt);
+  });
+
+  selTheme.innerHTML = '';
+  THEME_CATALOG.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    selTheme.appendChild(opt);
+  });
+
+  selHaz.innerHTML = '';
+  HAZARD_CATALOG.filter(h => h.status === 'implemented').forEach(h => {
+    const opt = document.createElement('option');
+    opt.value = h.id;
+    opt.textContent = h.label;
+    selHaz.appendChild(opt);
+  });
+
+  const course = getActiveEditorCourse();
+  const hole = getActiveEditorHole();
+  if (!course || !hole) {
+    summary.textContent = 'No custom course found. Create one to begin.';
+    return;
+  }
+
+  selCourse.value = String(gs.editor.courseIdx);
+  inpCourseName.value = course.name || '';
+
+  selHole.innerHTML = '';
+  for (let i = 0; i < course.holes.length; i++) {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `Hole ${i + 1}`;
+    selHole.appendChild(opt);
+  }
+  selHole.value = String(gs.editor.holeIdx);
+
+  selTheme.value = THEME_CATALOG.includes(hole.theme) ? hole.theme : THEME_CATALOG[0];
+  inpPar.value = String(hole.par || 3);
+  document.getElementById('selEditorTool').value = gs.editor.tool;
+  selHaz.value = gs.editor.hazardType;
+
+  summary.textContent =
+    `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
+    `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · Theme ${hole.theme}`;
+}
+
+function applyThemeToHole(hole, themeName) {
+  hole.theme = THEME_CATALOG.includes(themeName) ? themeName : 'desert';
+}
+
+function resetActiveHoleGeometryRounded() {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  hole.polygon = roundedRectPolygon(60, 130, 680, 300, 72, 4);
+  hole.ball = { x: 120, y: 280 };
+  hole.cup = { x: 680, y: 280 };
+  hole.obstacles = [];
+  updateEditorPreviewHole();
+  saveEditorData();
+  refreshEditorControls();
 }
 
 function getLevelInfo(xp) {
@@ -1277,6 +1489,43 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function nearestVertexIndex(poly, p, maxDist = 24) {
+  let best = -1;
+  let bestD2 = maxDist * maxDist;
+  for (let i = 0; i < poly.length; i++) {
+    const d2 = dist2(poly[i].x, poly[i].y, p.x, p.y);
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = i;
+    }
+  }
+  return best;
+}
+
+function drawEditorOverlay(hole) {
+  if (gs.state !== State.EDITOR) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < hole.polygon.length; i++) {
+    const v = hole.polygon[i];
+    ctx.beginPath();
+    ctx.arc(v.x, v.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = i === gs.editor.dragVertexIdx ? 'rgba(255,180,80,0.95)' : 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(ctx, 8, CH - 66, 290, 58, 8);
+  ctx.fill();
+  ctx.fillStyle = '#f2f2f2';
+  ctx.font = '12px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Editor Tool: ${gs.editor.tool}`, 16, CH - 44);
+  ctx.fillText('Drag vertices or click to place tee/cup/hazard', 16, CH - 24);
+  ctx.restore();
+}
+
 /** Draw obstacle wall segments */
 function drawObstacles(hole) {
   ctx.save();
@@ -1389,9 +1638,10 @@ function render() {
   }
 
   // Fairway polygon
+  const ts = getThemeStyle(hole.theme || 'jungle');
   const feltGrad = ctx.createLinearGradient(0, 0, CW, CH);
-  feltGrad.addColorStop(0, '#1e5535');
-  feltGrad.addColorStop(1, '#164025');
+  feltGrad.addColorStop(0, ts.feltA);
+  feltGrad.addColorStop(1, ts.feltB);
   fillPoly(hole.polygon, feltGrad);
 
   // Subtle fairway pattern (diagonal lines)
@@ -1403,7 +1653,7 @@ function render() {
   ctx.closePath();
   ctx.clip();
   ctx.globalAlpha = 0.06;
-  ctx.strokeStyle = '#8fffb4';
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
   ctx.lineWidth = 1;
   for (let s = -CH; s < CW + CH; s += 22) {
     ctx.beginPath();
@@ -1414,9 +1664,9 @@ function render() {
   ctx.restore();
 
   // Polygon border (wall)
-  strokePoly(hole.polygon, '#0a2015', 8);
-  strokePoly(hole.polygon, '#3a7050', 3);
-  strokePoly(hole.polygon, '#5aaa70', 1);
+  strokePoly(hole.polygon, ts.edgeA, 8);
+  strokePoly(hole.polygon, ts.edgeB, 3);
+  strokePoly(hole.polygon, 'rgba(255,255,255,0.35)', 1);
 
   // Hazards
   for (const hz of hole.hazards) drawHazard(hz);
@@ -1441,6 +1691,8 @@ function render() {
   // HUD
   drawHUD();
 
+  drawEditorOverlay(hole);
+
   // Hint
   if (!gs.aiming) drawHint();
 }
@@ -1455,9 +1707,33 @@ function getEventPos(e) {
 }
 
 function onPointerDown(e) {
-  if (gs.state !== State.PLAYING) return;
-
   const p = getEventPos(e);
+  if (gs.state === State.EDITOR) {
+    const hole = getActiveEditorHole();
+    if (!hole) return;
+    if (gs.editor.tool === 'vertex') {
+      gs.editor.dragVertexIdx = nearestVertexIndex(hole.polygon, p);
+    } else if (gs.editor.tool === 'tee') {
+      hole.ball = clampPointToCanvas(p);
+      gs.ball.x = hole.ball.x;
+      gs.ball.y = hole.ball.y;
+      saveEditorData();
+      refreshEditorControls();
+    } else if (gs.editor.tool === 'cup') {
+      hole.cup = clampPointToCanvas(p);
+      saveEditorData();
+      refreshEditorControls();
+    } else if (gs.editor.tool === 'hazard') {
+      const c = clampPointToCanvas(p);
+      hole.hazards.push({ type: gs.editor.hazardType, shape: 'circle', cx: c.x, cy: c.y, r: 48 });
+      saveEditorData();
+      refreshEditorControls();
+    }
+    e.preventDefault();
+    return;
+  }
+
+  if (gs.state !== State.PLAYING) return;
 
   // Settings / pause button hit area (top-right of HUD)
   if (p.y < 44 && p.x >= CW - 52) {
@@ -1478,12 +1754,28 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
+  if (gs.state === State.EDITOR && gs.editor.dragVertexIdx >= 0) {
+    const hole = getActiveEditorHole();
+    if (!hole) return;
+    const p = clampPointToCanvas(getEventPos(e));
+    hole.polygon[gs.editor.dragVertexIdx] = p;
+    saveEditorData();
+    e.preventDefault();
+    return;
+  }
+
   if (!gs.aiming) return;
   gs.aimCurrent = getEventPos(e);
   e.preventDefault();
 }
 
 function onPointerUp(e) {
+  if (gs.state === State.EDITOR) {
+    gs.editor.dragVertexIdx = -1;
+    e.preventDefault();
+    return;
+  }
+
   if (!gs.aiming) return;
   gs.aiming = false;
 
@@ -1576,6 +1868,11 @@ function triggerSink() {
 
 /** Called when sinking animation finishes */
 function finishHole() {
+  if (gs.editor.testing) {
+    stopEditorHoleTest();
+    return;
+  }
+
   gs.scores.push(gs.strokes);
   checkAndUnlockAchievements();
 
@@ -1723,7 +2020,9 @@ function showPauseScreen() {
   const info = hole
     ? `Hole ${gs.holeIdx + 1} of ${HOLES_PER_ROUND} · ${hole.name} · ${gs.strokes} stroke${gs.strokes !== 1 ? 's' : ''}`
     : '';
-  document.getElementById('pauseHoleInfo').textContent = info;
+  document.getElementById('pauseHoleInfo').textContent = gs.editor.testing
+    ? `${info} · Editor Test (press E to return)`
+    : info;
   gs.state = State.PAUSED;
   showScreen('pause');
 }
@@ -1765,12 +2064,34 @@ function showProfile() {
 
 function showEditorScreen() {
   gs.customCourses = loadCustomCourses();
-  const totalHoles = gs.customCourses.reduce((sum, c) => sum + (Array.isArray(c.holes) ? c.holes.length : 0), 0);
-  const plannedHazards = HAZARD_CATALOG.filter(h => h.status === 'planned').length;
-  document.getElementById('editorSummary').textContent =
-    `${gs.customCourses.length} custom course(s), ${totalHoles} designed hole(s). ${THEME_CATALOG.length} themes available. ${plannedHazards} hazard types queued.`;
+  if (!gs.customCourses.length) {
+    gs.customCourses.push(makeBlankCourse());
+    saveEditorData();
+  }
+  gs.editor.testing = false;
+  updateEditorPreviewHole();
+  refreshEditorControls();
   gs.state = State.EDITOR;
   showScreen('editor');
+}
+
+function startEditorHoleTest() {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  gs.editor.testing = true;
+  gs.hole = hole;
+  gs.strokes = 0;
+  gs.ball = { x: hole.ball.x, y: hole.ball.y, vx: 0, vy: 0, moving: false };
+  gs.lastSafe = { x: hole.ball.x, y: hole.ball.y };
+  gs.ballInWater = false;
+  gs.state = State.PLAYING;
+  showScreen('');
+}
+
+function stopEditorHoleTest() {
+  if (!gs.editor.testing) return;
+  gs.editor.testing = false;
+  showEditorScreen();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1782,6 +2103,52 @@ document.getElementById('btnPlay').addEventListener('click', () => {
 
 document.getElementById('btnEditor').addEventListener('click', () => {
   showEditorScreen();
+});
+
+document.getElementById('selEditorCourse').addEventListener('change', (e) => {
+  gs.editor.courseIdx = Number(e.target.value) || 0;
+  gs.editor.holeIdx = 0;
+  updateEditorPreviewHole();
+  refreshEditorControls();
+});
+
+document.getElementById('selEditorHole').addEventListener('change', (e) => {
+  gs.editor.holeIdx = Number(e.target.value) || 0;
+  updateEditorPreviewHole();
+  refreshEditorControls();
+});
+
+document.getElementById('selEditorTheme').addEventListener('change', (e) => {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  applyThemeToHole(hole, e.target.value);
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('inpEditorPar').addEventListener('change', (e) => {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  hole.par = clamp(Number(e.target.value) || 3, 1, 8);
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('inpEditorCourseName').addEventListener('change', (e) => {
+  const course = getActiveEditorCourse();
+  if (!course) return;
+  course.name = (e.target.value || '').trim() || `Custom Course ${gs.editor.courseIdx + 1}`;
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('selEditorTool').addEventListener('change', (e) => {
+  gs.editor.tool = e.target.value;
+  gs.editor.dragVertexIdx = -1;
+});
+
+document.getElementById('selEditorHazard').addEventListener('change', (e) => {
+  gs.editor.hazardType = e.target.value;
 });
 
 document.getElementById('btnProfile').addEventListener('click', () => {
@@ -1806,6 +2173,10 @@ document.getElementById('btnResume').addEventListener('click', () => {
 });
 
 document.getElementById('btnPauseMenu').addEventListener('click', () => {
+  if (gs.editor.testing) {
+    stopEditorHoleTest();
+    return;
+  }
   gs.hole  = null;
   gs.state = State.MENU;
   showScreen('menu');
@@ -1824,8 +2195,46 @@ document.getElementById('btnBackProfile').addEventListener('click', () => {
 document.getElementById('btnCreateCourse').addEventListener('click', () => {
   gs.customCourses = loadCustomCourses();
   gs.customCourses.push(makeBlankCourse());
+  gs.editor.courseIdx = gs.customCourses.length - 1;
+  gs.editor.holeIdx = 0;
   saveCustomCourses(gs.customCourses);
   showEditorScreen();
+});
+
+document.getElementById('btnResetGeometry').addEventListener('click', () => {
+  resetActiveHoleGeometryRounded();
+});
+
+document.getElementById('btnAddVertex').addEventListener('click', () => {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  hole.polygon.push({ x: CW / 2, y: CH / 2 });
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('btnRemoveVertex').addEventListener('click', () => {
+  const hole = getActiveEditorHole();
+  if (!hole || hole.polygon.length <= 3) return;
+  hole.polygon.pop();
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('btnClearHazards').addEventListener('click', () => {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  hole.hazards = [];
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('btnTestHole').addEventListener('click', () => {
+  startEditorHoleTest();
+});
+
+document.getElementById('btnStopTest').addEventListener('click', () => {
+  stopEditorHoleTest();
 });
 
 document.getElementById('btnExportCourses').addEventListener('click', () => {
@@ -1845,6 +2254,10 @@ document.getElementById('btnBackEditor').addEventListener('click', () => {
 
 // ESC / P key to pause or resume
 document.addEventListener('keydown', (e) => {
+  if ((e.key === 'e' || e.key === 'E') && gs.editor.testing && gs.state === State.PLAYING) {
+    stopEditorHoleTest();
+    return;
+  }
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
     if (gs.state === State.PLAYING) {
       showPauseScreen();
@@ -1887,6 +2300,10 @@ function gameLoop() {
           // Ball stopped inside water — apply penalty and reset
           applyWaterPenalty();
         } else if (gs.strokes >= hole.par + MAX_OVER_PAR) {
+          if (gs.editor.testing) {
+            stopEditorHoleTest();
+            return;
+          }
           // Auto-advance: too many strokes
           gs.scores.push(gs.strokes);
           checkAndUnlockAchievements();
