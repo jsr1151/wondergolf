@@ -203,6 +203,7 @@
         <div class="leg-item"><div class="leg-dot" style="background:var(--water-color)"></div>Water (penalty)</div>
         <div class="leg-item"><div class="leg-dot" style="background:var(--slick-color)"></div>Slick (−friction)</div>
       </div>
+      <button class="btn btn-gold gone"  id="btnContinue">▶ Continue Round</button>
       <button class="btn btn-primary"   id="btnPlay">🏌️ Play Today's Round</button>
       <button class="btn btn-secondary" id="btnProfile" aria-label="Profile and Achievements">👤 Profile &amp; Achievements</button>
     </div>
@@ -394,7 +395,7 @@ const HOLE_POOL = [
     ],
     ball: {x: 90, y:280}, cup: {x:710, y:280},
     hazards: [
-      {type:'water', shape:'rect', x:295,y:205, w:230,h:150},
+      {type:'water', shape:'rect', x:295,y:205, w:230,h:150, flow:{dx:1.5,dy:0}},
     ],
     obstacles: [],
   },
@@ -576,6 +577,7 @@ let gs = {               // game state object
 
   // Flags
   ballInWater: false,
+  savedGame:   null,     // saved state for "Continue Round" from main menu
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -800,6 +802,13 @@ function physicsTick(ball, hole) {
   ball.vx *= fr;
   ball.vy *= fr;
 
+  // Apply water flow force (after friction for consistent effect)
+  const wHz = getWaterHazard(ball, hole);
+  if (wHz && wHz.flow) {
+    ball.vx += wHz.flow.dx;
+    ball.vy += wHz.flow.dy;
+  }
+
   // Resolve wall collisions (multiple passes for stability)
   const walls = getWalls(hole);
   for (let pass = 0; pass < 3; pass++) {
@@ -914,16 +923,27 @@ function drawHazard(hz) {
 
     if (hz.type === 'water') {
       const t = performance.now() / 1000;
+      const flow = hz.flow || {dx: 0, dy: 1};
+      const isHoriz = Math.abs(flow.dx) >= Math.abs(flow.dy);
+      const sign = isHoriz ? (flow.dx >= 0 ? 1 : -1) : (flow.dy >= 0 ? 1 : -1);
       ctx.globalAlpha = 0.25;
       ctx.strokeStyle = '#6ab4ff';
       ctx.lineWidth = 1;
       for (let i = 0; i < 4; i++) {
-        const phase = (t * 0.6 + i * 0.25) % 1;
-        const ry = hz.y + hz.h * phase;
-        ctx.beginPath();
-        ctx.moveTo(hz.x + 4, ry);
-        ctx.lineTo(hz.x + hz.w - 4, ry);
-        ctx.stroke();
+        const phase = ((t * 0.6 * sign + i * 0.25) % 1 + 1) % 1;
+        if (isHoriz) {
+          const rx = hz.x + hz.w * phase;
+          ctx.beginPath();
+          ctx.moveTo(rx, hz.y + 4);
+          ctx.lineTo(rx, hz.y + hz.h - 4);
+          ctx.stroke();
+        } else {
+          const ry = hz.y + hz.h * phase;
+          ctx.beginPath();
+          ctx.moveTo(hz.x + 4, ry);
+          ctx.lineTo(hz.x + hz.w - 4, ry);
+          ctx.stroke();
+        }
       }
     }
     if (hz.type === 'sand') {
@@ -1382,6 +1402,7 @@ function startRound() {
   gs.scores       = [];
   gs.totalStrokes = 0;
   gs.waterPenalties = 0;
+  gs.savedGame    = null;
   loadHole(0);
 }
 
@@ -1487,6 +1508,9 @@ function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => {
     el.classList.toggle('gone', k !== name);
   });
+  if (name === 'menu') {
+    document.getElementById('btnContinue').classList.toggle('gone', !gs.savedGame);
+  }
 }
 
 let _nextHoleCallback = null;
@@ -1610,6 +1634,18 @@ document.getElementById('btnPlay').addEventListener('click', () => {
   startRound();
 });
 
+document.getElementById('btnContinue').addEventListener('click', () => {
+  if (!gs.savedGame) return;
+  const s = gs.savedGame;
+  gs.round          = s.round;
+  gs.holeIdx        = s.holeIdx;
+  gs.scores         = s.scores;
+  gs.totalStrokes   = s.totalStrokes;
+  gs.waterPenalties = s.waterPenalties;
+  gs.savedGame      = null;
+  loadHole(s.holeIdx);
+});
+
 document.getElementById('btnProfile').addEventListener('click', () => {
   showProfile();
 });
@@ -1632,6 +1668,13 @@ document.getElementById('btnResume').addEventListener('click', () => {
 });
 
 document.getElementById('btnPauseMenu').addEventListener('click', () => {
+  gs.savedGame = {
+    round:          [...gs.round],
+    holeIdx:        gs.holeIdx,
+    scores:         [...gs.scores],
+    totalStrokes:   gs.totalStrokes,
+    waterPenalties: gs.waterPenalties,
+  };
   gs.hole  = null;
   gs.state = State.MENU;
   showScreen('menu');
