@@ -669,26 +669,26 @@ const OBSTACLE_CATALOG = [
   { id: 'pyramid',       label: 'Pyramid',                elementTheme: 'desert', status: 'implemented' },
   { id: 'ruins',         label: 'Ruins',                  elementTheme: 'desert', status: 'implemented' },
   { id: 'jelly_bumper',  label: 'Jelly Bumper',           elementTheme: 'candy', status: 'implemented' },
-  { id: 'dinosaur',      label: 'Dinosaur',               elementTheme: 'jungle', status: 'planned' },
+  { id: 'dinosaur',      label: 'Dinosaur',               elementTheme: 'jungle', status: 'implemented' },
   { id: 'volcano_spout', label: 'Volcano Spout',          elementTheme: 'volcano', status: 'implemented' },
   { id: 'windmill',      label: 'Windmill',               elementTheme: 'farm', status: 'implemented' },
   { id: 'coffin',        label: 'Coffin',                 elementTheme: 'haunted', status: 'implemented' },
   { id: 'tombstone',     label: 'Tombstone',              elementTheme: 'haunted', status: 'implemented' },
-  { id: 'planet',        label: 'Planet',                 elementTheme: 'space', status: 'planned' },
+  { id: 'planet',        label: 'Planet',                 elementTheme: 'space', status: 'implemented' },
   { id: 'target',        label: 'Target',                 elementTheme: 'medieval', status: 'implemented' },
   { id: 'timed_gate',    label: 'Timed Gate',             elementTheme: 'cyber', status: 'implemented' },
   { id: 'trampoline',    label: 'Trampoline',             elementTheme: 'carnival', status: 'implemented' },
-  { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'planned' },
+  { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'implemented' },
   { id: 'beach_ball',    label: 'Beach Ball',             elementTheme: 'beach', status: 'implemented' },
   { id: 'coral',         label: 'Coral',                  elementTheme: 'underwater', status: 'implemented' },
   { id: 'car',           label: 'Car',                    elementTheme: 'urban', status: 'implemented' },
   { id: 'cactus',        label: 'Cactus',                 elementTheme: 'western', status: 'implemented' },
   { id: 'cherry_tree',   label: 'Cherry Blossom',         elementTheme: 'asian', status: 'implemented' },
   { id: 'cogs',          label: 'Cogs',                   elementTheme: 'factory', status: 'implemented' },
-  { id: 'hot_air',       label: 'Hot Air Balloon',        elementTheme: 'sky', status: 'planned' },
-  { id: 'dragon',        label: 'Dragon',                 elementTheme: 'mythology', status: 'planned' },
+  { id: 'hot_air',       label: 'Hot Air Balloon',        elementTheme: 'sky', status: 'implemented' },
+  { id: 'dragon',        label: 'Dragon',                 elementTheme: 'mythology', status: 'implemented' },
   { id: 'stalagmite',    label: 'Stalagmite',             elementTheme: 'cavern', status: 'implemented' },
-  { id: 'golden_egg',    label: 'Golden Egg',             elementTheme: 'fairy tale', status: 'planned' },
+  { id: 'golden_egg',    label: 'Golden Egg',             elementTheme: 'fairy tale', status: 'implemented' },
   { id: 'land_mine',     label: 'Land Mine',              elementTheme: 'war', status: 'implemented' },
   { id: 'snowman',       label: 'Snowman',                elementTheme: 'snow', status: 'implemented' },
 ];
@@ -1478,6 +1478,27 @@ function refreshEditorControls() {
       gs.editor.obstacleSpeed = clamp(Number(selectedObs.spoutPower) || gs.editor.obstacleSpeed, 0.1, 5);
       gs.editor.obstaclePath = clamp(Number(selectedObs.blastRadius) || gs.editor.obstaclePath, 20, 420);
       gs.editor.obstacleAngle = Math.round(Number(selectedObs.spoutAngleDeg) || gs.editor.obstacleAngle);
+    } else if (selectedObs.dynamicType === 'planet') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.gravityRadius) || gs.editor.obstaclePath, 20, 420);
+    } else if (selectedObs.dynamicType === 'hot_air') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.updraftRadius) || gs.editor.obstaclePath, 20, 420);
+      gs.editor.obstacleAngle = Math.round(Number(selectedObs.upAngleDeg) || gs.editor.obstacleAngle);
+    } else if (selectedObs.dynamicType === 'dragon') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.flameRange) || gs.editor.obstaclePath, 20, 420);
+      gs.editor.obstacleAngle = Math.round(Number(selectedObs.flameAngleDeg) || gs.editor.obstacleAngle);
+    } else if (selectedObs.dynamicType === 'dinosaur') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.stompRadius) || gs.editor.obstaclePath, 20, 420);
+    } else if (selectedObs.dynamicType === 'golden_egg') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
+    } else if (selectedObs.dynamicType === 'birds') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
+      gs.editor.obstacleAngle = Math.round(Number(selectedObs.pathAngleDeg) || gs.editor.obstacleAngle);
     } else {
       gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
       gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
@@ -1785,6 +1806,105 @@ function placePresetObstacle(hole, c) {
   if (gs.editor.obstacleType === 'ruins') {
     pushSeg(-h * 0.52, -10, h * 0.52, -10);
     pushSeg(-h * 0.36, 10, h * 0.36, 10);
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'planet') {
+    pushSeg(-16, 0, 16, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'planet';
+      ob.moveSpeed = motionSpeed;
+      ob.pathLen = motionPath;
+      ob.gravityRadius = clamp(motionPath * 0.55, 70, 240);
+      ob.gravityStrength = clamp(motionSpeed * 0.045, 0.02, 0.24);
+      ob.orbitPhase = Math.random() * Math.PI * 2;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'birds') {
+    hole.obstacles.push({
+      x1: c.x - 12,
+      y1: c.y,
+      x2: c.x + 12,
+      y2: c.y,
+      kind: 'birds',
+      size: s,
+      dynamicType: 'birds',
+      baseX: c.x,
+      baseY: c.y,
+      pathAngleDeg: Number(gs.editor.obstacleAngle) || 0,
+      pathLen: motionPath,
+      moveSpeed: motionSpeed,
+      wingSpan: Math.max(10, s * 0.14),
+      phase: Math.random() * Math.PI * 2,
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'hot_air') {
+    pushSeg(-14, 0, 14, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'hot_air';
+      ob.moveSpeed = motionSpeed;
+      ob.pathLen = motionPath;
+      ob.upAngleDeg = Number(gs.editor.obstacleAngle) || -90;
+      ob.updraftRadius = clamp(motionPath * 0.45, 60, 220);
+      ob.updraftPower = clamp(motionSpeed * 0.065, 0.03, 0.28);
+      ob.driftPhase = Math.random() * Math.PI * 2;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'dragon') {
+    pushSeg(-18, 0, 18, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'dragon';
+      ob.moveSpeed = motionSpeed;
+      ob.pathLen = motionPath;
+      ob.flameAngleDeg = Number(gs.editor.obstacleAngle) || 0;
+      ob.flameRange = clamp(motionPath * 0.55, 80, 250);
+      ob.flamePower = clamp(motionSpeed * 0.26, 0.12, 1.15);
+      ob.flameCycleMs = Math.round(clamp(2500 - motionSpeed * 220, 900, 3200));
+      ob.flameWindowMs = 520;
+      ob.flamePhaseMs = Math.random() * 1000;
+      ob.flameActive = 0;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'dinosaur') {
+    pushSeg(-20, 0, 20, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'dinosaur';
+      ob.moveSpeed = motionSpeed;
+      ob.pathLen = motionPath;
+      ob.stompRadius = clamp(motionPath * 0.55, 70, 250);
+      ob.stompPower = clamp(motionSpeed * 0.95, 0.4, 3.9);
+      ob.stompEveryMs = Math.round(clamp(2200 - motionSpeed * 180, 900, 3200));
+      ob.stompWindowMs = 380;
+      ob.stompPhaseMs = Math.random() * 1000;
+      ob.stompActive = 0;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'golden_egg') {
+    pushSeg(-10, 0, 10, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'golden_egg';
+      ob.moveSpeed = motionSpeed;
+      ob.pathLen = motionPath;
+      ob.boostPower = clamp(motionSpeed * 0.9, 0.5, 3.9);
+      ob.cooldownMs = 1200;
+      ob.lastBoostMs = 0;
+      ob.sparkleMs = 0;
+    }
     return;
   }
 
@@ -2141,6 +2261,43 @@ function updateDynamicObstacles(hole, tSec) {
       const tMs = tSec * 1000 + phaseMs;
       const local = ((tMs % cycle) + cycle) % cycle;
       ob.spoutActive = local < windowMs ? 1 : 0;
+      continue;
+    }
+    if (ob.dynamicType === 'birds') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
+      const a = (Number(ob.pathAngleDeg) || 0) * Math.PI / 180;
+      const travel = Math.sin(tSec * speed * 1.2 + (Number(ob.phase) || 0)) * (pathLen * 0.5);
+      const cx = (Number(ob.baseX) || 0) + Math.cos(a) * travel;
+      const cy = (Number(ob.baseY) || 0) + Math.sin(a) * travel;
+      const perp = a + Math.PI * 0.5;
+      const wing = clamp(Number(ob.wingSpan) || 14, 8, 40);
+      ob.x1 = clamp(cx - Math.cos(perp) * wing, 18, CW - 18);
+      ob.y1 = clamp(cy - Math.sin(perp) * wing, 18, CH - 18);
+      ob.x2 = clamp(cx + Math.cos(perp) * wing, 18, CW - 18);
+      ob.y2 = clamp(cy + Math.sin(perp) * wing, 18, CH - 18);
+      continue;
+    }
+    if (ob.dynamicType === 'dragon') {
+      const cycle = clamp(Number(ob.flameCycleMs) || 1700, 700, 4000);
+      const windowMs = clamp(Number(ob.flameWindowMs) || 520, 150, 1500);
+      const phaseMs = Number(ob.flamePhaseMs) || 0;
+      const tMs = tSec * 1000 + phaseMs;
+      const local = ((tMs % cycle) + cycle) % cycle;
+      ob.flameActive = local < windowMs ? 1 : 0;
+      continue;
+    }
+    if (ob.dynamicType === 'dinosaur') {
+      const cycle = clamp(Number(ob.stompEveryMs) || 1400, 600, 4000);
+      const windowMs = clamp(Number(ob.stompWindowMs) || 380, 120, 1200);
+      const phaseMs = Number(ob.stompPhaseMs) || 0;
+      const tMs = tSec * 1000 + phaseMs;
+      const local = ((tMs % cycle) + cycle) % cycle;
+      ob.stompActive = local < windowMs ? 1 : 0;
+      continue;
+    }
+    if (ob.dynamicType === 'golden_egg') {
+      ob.sparkleMs = tSec * 1000;
     }
   }
 }
@@ -2149,6 +2306,102 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
   if (!ball || !hole || !Array.isArray(hole.obstacles)) return;
   const now = performance.now();
   for (const ob of hole.obstacles) {
+    if (ob.dynamicType === 'planet') {
+      const mx = (ob.x1 + ob.x2) * 0.5;
+      const my = (ob.y1 + ob.y2) * 0.5;
+      const dx = mx - ball.x;
+      const dy = my - ball.y;
+      const d = Math.hypot(dx, dy);
+      const radius = clamp(Number(ob.gravityRadius) || 120, 40, 260);
+      if (d > 1e-3 && d < radius) {
+        const pull = clamp(Number(ob.gravityStrength) || 0.06, 0.01, 0.3) * (1 - d / radius);
+        ball.vx += (dx / d) * pull;
+        ball.vy += (dy / d) * pull;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'hot_air') {
+      const mx = (ob.x1 + ob.x2) * 0.5;
+      const my = (ob.y1 + ob.y2) * 0.5;
+      const d = Math.hypot(ball.x - mx, ball.y - my);
+      const radius = clamp(Number(ob.updraftRadius) || 120, 40, 260);
+      if (d < radius) {
+        const a = (Number(ob.upAngleDeg) || -90) * Math.PI / 180;
+        const p = clamp(Number(ob.updraftPower) || 0.08, 0.02, 0.35) * (1 - d / radius);
+        ball.vx += Math.cos(a) * p;
+        ball.vy += Math.sin(a) * p;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'birds') {
+      const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
+      if (d < BALL_R + 11) {
+        const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1) + Math.PI * 0.5;
+        ball.vx += Math.cos(a) * 0.08;
+        ball.vy += Math.sin(a) * 0.08;
+        ball.moving = true;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'dragon' && Number(ob.flameActive) > 0.5) {
+      const mx = (ob.x1 + ob.x2) * 0.5;
+      const my = (ob.y1 + ob.y2) * 0.5;
+      const angle = (Number(ob.flameAngleDeg) || 0) * Math.PI / 180;
+      const dx = ball.x - mx;
+      const dy = ball.y - my;
+      const d = Math.hypot(dx, dy);
+      const range = clamp(Number(ob.flameRange) || 130, 50, 280);
+      if (d < range) {
+        const facing = (dx * Math.cos(angle) + dy * Math.sin(angle)) / Math.max(d, 1);
+        if (facing > 0.22) {
+          const p = clamp(Number(ob.flamePower) || 0.35, 0.08, 1.4) * (1 - d / range) * 0.6;
+          ball.vx += Math.cos(angle) * p;
+          ball.vy += Math.sin(angle) * p;
+          ball.moving = true;
+        }
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'dinosaur' && Number(ob.stompActive) > 0.5) {
+      const mx = (ob.x1 + ob.x2) * 0.5;
+      const my = (ob.y1 + ob.y2) * 0.5;
+      const dx = ball.x - mx;
+      const dy = ball.y - my;
+      const d = Math.hypot(dx, dy);
+      const radius = clamp(Number(ob.stompRadius) || 140, 50, 280);
+      if (d > 1e-3 && d < radius) {
+        const p = clamp(Number(ob.stompPower) || 1.5, 0.25, 4.5) * (1 - d / radius) * 0.22;
+        ball.vx += (dx / d) * p;
+        ball.vy += (dy / d) * p;
+        ball.moving = true;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'golden_egg') {
+      const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
+      const cooldownMs = clamp(Number(ob.cooldownMs) || 1200, 400, 6000);
+      if (d <= BALL_R + 8 && (!ob.lastBoostMs || now - ob.lastBoostMs > cooldownMs)) {
+        const p = clamp(Number(ob.boostPower) || 1.2, 0.3, 4.5);
+        const spd = Math.hypot(ball.vx, ball.vy);
+        if (spd > 0.15) {
+          ball.vx += (ball.vx / spd) * p * 0.33;
+          ball.vy += (ball.vy / spd) * p * 0.33;
+        } else {
+          ball.vx += p * 0.2;
+          ball.vy -= p * 0.12;
+        }
+        ob.lastBoostMs = now;
+        ob.sparkleMs = now;
+        ball.moving = true;
+      }
+      continue;
+    }
+
     if (ob.dynamicType === 'volcano_spout' && Number(ob.spoutActive) > 0.5) {
       const mx = (ob.x1 + ob.x2) * 0.5;
       const my = (ob.y1 + ob.y2) * 0.5;
@@ -3265,6 +3518,97 @@ function drawObstacles(hole) {
         ctx.fillRect(bx - 3, -bh * 0.5, 6, bh);
       }
       ctx.restore();
+    } else if (ob.kind === 'planet') {
+      const t = performance.now() / 1000;
+      const r = Math.max(8, Math.min(16, len * 0.33));
+      ctx.fillStyle = 'rgba(112,136,255,0.9)';
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(200,218,255,0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(mx, my, r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(240,246,255,0.9)';
+      ctx.beginPath();
+      ctx.arc(mx + Math.cos(t + (Number(ob.orbitPhase) || 0)) * (r + 5), my + Math.sin(t + (Number(ob.orbitPhase) || 0)) * (r + 5), 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (ob.kind === 'birds') {
+      const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(a);
+      ctx.strokeStyle = 'rgba(238,244,252,0.92)';
+      ctx.lineWidth = 1.8;
+      for (let i = -1; i <= 1; i++) {
+        const bx = i * 10;
+        ctx.beginPath();
+        ctx.moveTo(bx - 4, 0);
+        ctx.lineTo(bx, -3);
+        ctx.lineTo(bx + 4, 0);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (ob.kind === 'hot_air') {
+      const drift = Math.sin(performance.now() / 700 + (Number(ob.driftPhase) || 0)) * 2;
+      ctx.fillStyle = 'rgba(244,149,84,0.92)';
+      ctx.beginPath();
+      ctx.arc(mx, my - 8 + drift, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(146,92,62,0.95)';
+      ctx.fillRect(mx - 4, my + 2 + drift, 8, 5);
+      ctx.strokeStyle = 'rgba(235,215,190,0.86)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mx - 4, my + 2 + drift);
+      ctx.lineTo(mx - 2, my - 2 + drift);
+      ctx.moveTo(mx + 4, my + 2 + drift);
+      ctx.lineTo(mx + 2, my - 2 + drift);
+      ctx.stroke();
+    } else if (ob.kind === 'dragon') {
+      const a = (Number(ob.flameAngleDeg) || 0) * Math.PI / 180;
+      const sx = Math.cos(a + Math.PI * 0.5) * 8;
+      const sy = Math.sin(a + Math.PI * 0.5) * 8;
+      ctx.fillStyle = 'rgba(94,178,94,0.92)';
+      ctx.beginPath();
+      ctx.moveTo(mx + Math.cos(a) * 10, my + Math.sin(a) * 10);
+      ctx.lineTo(mx - sx, my - sy);
+      ctx.lineTo(mx + sx, my + sy);
+      ctx.closePath();
+      ctx.fill();
+      if (Number(ob.flameActive) > 0.5) {
+        const range = clamp(Number(ob.flameRange) || 120, 60, 260) * 0.35;
+        ctx.strokeStyle = 'rgba(255,122,66,0.9)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(mx + Math.cos(a) * 11, my + Math.sin(a) * 11);
+        ctx.lineTo(mx + Math.cos(a) * (11 + range), my + Math.sin(a) * (11 + range));
+        ctx.stroke();
+      }
+    } else if (ob.kind === 'dinosaur') {
+      const stomp = Number(ob.stompActive) > 0.5;
+      ctx.fillStyle = 'rgba(96,151,88,0.92)';
+      ctx.beginPath();
+      ctx.ellipse(mx, my, 11, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (stomp) {
+        const r = clamp(Number(ob.stompRadius) || 130, 50, 280) * 0.25;
+        ctx.strokeStyle = 'rgba(209,240,172,0.76)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(mx, my, r, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    } else if (ob.kind === 'golden_egg') {
+      const pulse = 0.75 + 0.25 * Math.sin((performance.now() + (Number(ob.sparkleMs) || 0)) / 220);
+      ctx.fillStyle = `rgba(255,220,96,${pulse})`;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, 6, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,248,186,0.86)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
     }
   }
   // Inner edge highlight
@@ -4209,6 +4553,15 @@ document.getElementById('inpObstacleAngle').addEventListener('change', (e) => {
   } else if (ob && ob.dynamicType === 'volcano_spout') {
     ob.spoutAngleDeg = gs.editor.obstacleAngle;
     saveEditorData();
+  } else if (ob && ob.dynamicType === 'hot_air') {
+    ob.upAngleDeg = gs.editor.obstacleAngle;
+    saveEditorData();
+  } else if (ob && ob.dynamicType === 'dragon') {
+    ob.flameAngleDeg = gs.editor.obstacleAngle;
+    saveEditorData();
+  } else if (ob && ob.dynamicType === 'birds') {
+    ob.pathAngleDeg = gs.editor.obstacleAngle;
+    saveEditorData();
   }
   refreshEditorControls();
 });
@@ -4218,9 +4571,22 @@ document.getElementById('inpObstacleSpeed').addEventListener('change', (e) => {
   const hole = getActiveEditorHole();
   const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
   if (ob) {
+    ob.moveSpeed = gs.editor.obstacleSpeed;
     if (ob.dynamicType === 'volcano_spout') {
       ob.spoutPower = gs.editor.obstacleSpeed;
       ob.burstEveryMs = Math.round(clamp(1750 - gs.editor.obstacleSpeed * 180, 700, 2300));
+    } else if (ob.dynamicType === 'planet') {
+      ob.gravityStrength = clamp(gs.editor.obstacleSpeed * 0.045, 0.02, 0.24);
+    } else if (ob.dynamicType === 'hot_air') {
+      ob.updraftPower = clamp(gs.editor.obstacleSpeed * 0.065, 0.03, 0.28);
+    } else if (ob.dynamicType === 'dragon') {
+      ob.flamePower = clamp(gs.editor.obstacleSpeed * 0.26, 0.12, 1.15);
+      ob.flameCycleMs = Math.round(clamp(2500 - gs.editor.obstacleSpeed * 220, 900, 3200));
+    } else if (ob.dynamicType === 'dinosaur') {
+      ob.stompPower = clamp(gs.editor.obstacleSpeed * 0.95, 0.4, 3.9);
+      ob.stompEveryMs = Math.round(clamp(2200 - gs.editor.obstacleSpeed * 180, 900, 3200));
+    } else if (ob.dynamicType === 'golden_egg') {
+      ob.boostPower = clamp(gs.editor.obstacleSpeed * 0.9, 0.5, 3.9);
     } else {
       ob.moveSpeed = gs.editor.obstacleSpeed;
     }
@@ -4234,7 +4600,12 @@ document.getElementById('inpObstaclePath').addEventListener('change', (e) => {
   const hole = getActiveEditorHole();
   const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
   if (ob) {
+    ob.pathLen = gs.editor.obstaclePath;
     if (ob.dynamicType === 'volcano_spout') ob.blastRadius = gs.editor.obstaclePath;
+    else if (ob.dynamicType === 'planet') ob.gravityRadius = gs.editor.obstaclePath;
+    else if (ob.dynamicType === 'hot_air') ob.updraftRadius = gs.editor.obstaclePath;
+    else if (ob.dynamicType === 'dragon') ob.flameRange = gs.editor.obstaclePath;
+    else if (ob.dynamicType === 'dinosaur') ob.stompRadius = gs.editor.obstaclePath;
     else ob.pathLen = gs.editor.obstaclePath;
     saveEditorData();
   }
