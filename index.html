@@ -911,6 +911,8 @@ let gs = {               // game state object
 // ══════════════════════════════════════════════════════════════
 const LS_KEY = 'wondergolf_v1';
 const LS_CUSTOM_COURSES_KEY = 'wondergolf_custom_courses_v1';
+const MAX_POLYGON_POINTS = 220;
+const DEFAULT_POLYGON_POINTS = 72;
 
 function makeDefaultProfile() {
   return {
@@ -963,11 +965,57 @@ function saveProfile(prof) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(normalizeProfile(prof))); } catch (_) {}
 }
 
+function decimatePolygon(poly, targetCount = DEFAULT_POLYGON_POINTS) {
+  if (!Array.isArray(poly) || poly.length <= 3) return poly;
+  const target = clamp(Math.round(targetCount), 3, MAX_POLYGON_POINTS);
+  if (poly.length <= target) return poly;
+  const out = [];
+  const step = poly.length / target;
+  for (let i = 0; i < target; i++) {
+    const p = poly[Math.floor(i * step)] || poly[0];
+    out.push(clampPointToCanvas({ x: Number(p.x) || 0, y: Number(p.y) || 0 }));
+  }
+  return out;
+}
+
+function sanitizeHoleGeometry(hole) {
+  if (!hole || !Array.isArray(hole.polygon)) return false;
+  let changed = false;
+  hole.polygon = hole.polygon
+    .map(p => clampPointToCanvas({ x: Number(p?.x) || 0, y: Number(p?.y) || 0 }))
+    .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+
+  if (hole.polygon.length < 3) {
+    hole.polygon = roundedRectPolygon(60, 130, 680, 300, 72, 4);
+    changed = true;
+  }
+
+  if (hole.polygon.length > MAX_POLYGON_POINTS) {
+    hole.polygon = decimatePolygon(hole.polygon, DEFAULT_POLYGON_POINTS);
+    changed = true;
+  }
+  return changed;
+}
+
+function sanitizeCustomCourses(courses) {
+  if (!Array.isArray(courses)) return { courses: [], changed: false };
+  let changed = false;
+  for (const course of courses) {
+    if (!course || !Array.isArray(course.holes)) continue;
+    for (const hole of course.holes) {
+      changed = sanitizeHoleGeometry(hole) || changed;
+    }
+  }
+  return { courses, changed };
+}
+
 function loadCustomCourses() {
   try {
     const raw = localStorage.getItem(LS_CUSTOM_COURSES_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    const { courses, changed } = sanitizeCustomCourses(Array.isArray(parsed) ? parsed : []);
+    if (changed) saveCustomCourses(courses);
+    return courses;
   } catch (_) {
     return [];
   }
@@ -1082,15 +1130,21 @@ function filteredElements(catalog, elementTheme) {
 
 function smoothPolygonCurves(poly, smoothness = 3, samplesPerSeg = 9) {
   if (!Array.isArray(poly) || poly.length < 3) return poly;
+  let working = poly;
+  if (working.length > DEFAULT_POLYGON_POINTS) {
+    working = decimatePolygon(working, DEFAULT_POLYGON_POINTS);
+  }
   const t = clamp(Number(smoothness) || 3, 1, 5) * 0.18;
-  const samples = clamp(Math.round(Number(samplesPerSeg) || 9), 4, 18);
+  let samples = clamp(Math.round(Number(samplesPerSeg) || 9), 4, 18);
+  const perSegmentCap = Math.max(1, Math.floor(MAX_POLYGON_POINTS / working.length));
+  samples = Math.min(samples, perSegmentCap);
   const out = [];
-  const n = poly.length;
+  const n = working.length;
   for (let i = 0; i < n; i++) {
-    const p0 = poly[(i - 1 + n) % n];
-    const p1 = poly[i];
-    const p2 = poly[(i + 1) % n];
-    const p3 = poly[(i + 2) % n];
+    const p0 = working[(i - 1 + n) % n];
+    const p1 = working[i];
+    const p2 = working[(i + 1) % n];
+    const p3 = working[(i + 2) % n];
     for (let s = 0; s < samples; s++) {
       const u = s / samples;
       const u2 = u * u;
@@ -1109,7 +1163,7 @@ function smoothPolygonCurves(poly, smoothness = 3, samplesPerSeg = 9) {
       }));
     }
   }
-  return out;
+  return out.length > MAX_POLYGON_POINTS ? decimatePolygon(out, DEFAULT_POLYGON_POINTS) : out;
 }
 
 function refreshEditorControls() {
@@ -1261,6 +1315,10 @@ function refreshEditorControls() {
     `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · ${hole.obstacles.length} obstacles · Theme ${hole.theme}. ` +
     `Hazards: ${formatThemeLabel(gs.editor.hazardTheme)} · Obstacles: ${formatThemeLabel(gs.editor.obstacleTheme)}. ` +
     `Pick a tool, then click/drag directly on the course to edit.`;
+
+  if (hole.polygon.length > 120) {
+    summary.textContent += ' Geometry is dense; smoothing will auto-optimize for performance.';
+  }
 }
 
 function applyThemeToHole(hole, themeName) {
@@ -1725,7 +1783,7 @@ function drawBackground(themeName, holeName = '') {
 
   const rng = mulberry32(hashString(`${theme}|${holeName}`));
   ctx.save();
-  ctx.globalAlpha = 0.35;
+  ctx.globalAlpha = 0.5;
 
   const drawBlob = (x, y, r, color) => {
     ctx.beginPath();
@@ -1735,11 +1793,79 @@ function drawBackground(themeName, holeName = '') {
   };
 
   if (theme === 'desert') {
-    for (let i = 0; i < 45; i++) drawBlob(rng() * CW, rng() * CH, 8 + rng() * 22, 'rgba(214,183,124,0.35)');
+    ctx.strokeStyle = 'rgba(224,195,138,0.42)';
+    ctx.lineWidth = 3;
+    for (let y = 18; y < CH; y += 34) {
+      ctx.beginPath();
+      for (let x = 0; x <= CW; x += 22) {
+        const yy = y + Math.sin((x + y) * 0.03) * 7;
+        if (x === 0) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+    for (let i = 0; i < 28; i++) {
+      const x = rng() * CW;
+      const y = rng() * CH;
+      ctx.fillStyle = 'rgba(120,95,62,0.38)';
+      ctx.fillRect(x, y, 2, 10 + rng() * 10);
+      drawBlob(x + 1, y, 4 + rng() * 3, 'rgba(96,135,72,0.4)');
+    }
+  } else if (theme === 'farm') {
+    for (let y = 0; y < CH; y += 60) {
+      for (let x = 0; x < CW; x += 80) {
+        const even = ((x / 80) + (y / 60)) % 2 === 0;
+        ctx.fillStyle = even ? 'rgba(143,112,68,0.28)' : 'rgba(93,135,72,0.26)';
+        ctx.fillRect(x, y, 78, 58);
+      }
+    }
+    ctx.strokeStyle = 'rgba(210,186,138,0.38)';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < CH; y += 60) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CW, y); ctx.stroke();
+    }
+    for (let x = 0; x < CW; x += 80) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CH); ctx.stroke();
+    }
+  } else if (theme === 'beach') {
+    ctx.fillStyle = 'rgba(198,223,238,0.28)';
+    ctx.fillRect(0, 0, CW * 0.34, CH);
+    ctx.strokeStyle = 'rgba(240,243,228,0.62)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      const x = CW * 0.32 + i * 11;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + Math.sin(i * 0.9) * 10, CH);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 38; i++) drawBlob(CW * 0.38 + rng() * (CW * 0.58), rng() * CH, 6 + rng() * 14, 'rgba(215,193,136,0.22)');
+  } else if (theme === 'urban') {
+    ctx.fillStyle = 'rgba(66,70,76,0.34)';
+    for (let y = 10; y < CH; y += 74) {
+      for (let x = 10; x < CW; x += 92) {
+        ctx.fillRect(x, y, 58 + rng() * 18, 42 + rng() * 18);
+      }
+    }
+    ctx.strokeStyle = 'rgba(216,195,124,0.34)';
+    ctx.lineWidth = 1.5;
+    for (let y = 38; y < CH; y += 108) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CW, y); ctx.stroke();
+    }
   } else if (theme === 'jungle') {
-    for (let i = 0; i < 90; i++) drawBlob(rng() * CW, rng() * CH, 6 + rng() * 16, 'rgba(38,91,45,0.4)');
+    for (let i = 0; i < 110; i++) drawBlob(rng() * CW, rng() * CH, 7 + rng() * 18, 'rgba(38,91,45,0.45)');
+    ctx.strokeStyle = 'rgba(56,132,66,0.22)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 24; i++) {
+      const x = rng() * CW;
+      const y = rng() * CH;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.bezierCurveTo(x + 20, y - 30, x + 45, y + 20, x + 70, y - 8);
+      ctx.stroke();
+    }
   } else if (theme === 'medieval') {
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 16; i++) {
       const x = rng() * CW, y = rng() * CH;
       ctx.fillStyle = 'rgba(124,129,118,0.42)';
       ctx.fillRect(x, y, 28 + rng() * 26, 20 + rng() * 20);
@@ -1747,15 +1873,36 @@ function drawBackground(themeName, holeName = '') {
       ctx.fillRect(x + 6, y - 8, 8, 8);
     }
   } else if (theme === 'underwater') {
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 84; i++) {
       ctx.strokeStyle = 'rgba(154,220,255,0.25)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.arc(rng() * CW, rng() * CH, 3 + rng() * 10, 0, Math.PI * 2);
       ctx.stroke();
     }
+    ctx.strokeStyle = 'rgba(112,192,232,0.18)';
+    for (let y = 20; y < CH; y += 26) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      for (let x = 0; x <= CW; x += 18) {
+        const yy = y + Math.sin((x + y) * 0.05) * 4;
+        ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+  } else if (theme === 'snow') {
+    for (let i = 0; i < 100; i++) {
+      const x = rng() * CW;
+      const y = rng() * CH;
+      ctx.strokeStyle = 'rgba(235,248,255,0.42)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - 3, y); ctx.lineTo(x + 3, y);
+      ctx.moveTo(x, y - 3); ctx.lineTo(x, y + 3);
+      ctx.stroke();
+    }
   } else {
-    for (let i = 0; i < 65; i++) drawBlob(rng() * CW, rng() * CH, 5 + rng() * 14, 'rgba(255,255,255,0.1)');
+    for (let i = 0; i < 70; i++) drawBlob(rng() * CW, rng() * CH, 5 + rng() * 14, 'rgba(255,255,255,0.12)');
   }
 
   ctx.restore();
