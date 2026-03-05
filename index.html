@@ -119,6 +119,50 @@
       background: rgba(74, 222, 128, 0.18);
       color: #d9ffea;
     }
+    .editor-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .editor-tab {
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 9px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 7px 6px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .editor-tab.active {
+      border-color: rgba(74, 222, 128, 0.7);
+      background: rgba(74, 222, 128, 0.18);
+      color: #d9ffea;
+    }
+    .editor-context-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .editor-context-chips .chip {
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+    .editor-info-block.gone,
+    .editor-build-block.gone,
+    .editor-geo-block.gone,
+    .editor-hazard-block.gone,
+    .editor-obstacle-block.gone {
+      display: none !important;
+    }
     @media (max-width: 820px) {
       .screen.editor-dock {
         justify-content: center;
@@ -346,18 +390,23 @@
   <div id="scrEditor" class="screen gone editor-dock">
     <div class="panel panel-wide">
       <div class="panel-heading">🛠 Course Editor</div>
-      <div class="editor-quickbar" id="editorQuickTools">
-        <button class="tool-chip" type="button" data-tool="select">1 Select</button>
-        <button class="tool-chip" type="button" data-tool="vertex">2 Vertex</button>
-        <button class="tool-chip" type="button" data-tool="curve">3 Curve</button>
-        <button class="tool-chip" type="button" data-tool="tee">4 Tee</button>
-        <button class="tool-chip" type="button" data-tool="cup">5 Cup</button>
-        <button class="tool-chip" type="button" data-tool="hazard">6 Hazard</button>
-        <button class="tool-chip" type="button" data-tool="obstacle">7 Obstacle</button>
-        <button class="tool-chip" type="button" data-tool="cycle">[ ] Cycle</button>
+      <div class="editor-tabs">
+        <button class="editor-tab active" type="button" id="btnEditorTabBuild">Build</button>
+        <button class="editor-tab" type="button" id="btnEditorTabInfo">Info</button>
       </div>
+      <div class="editor-quickbar" id="editorQuickTools">
+        <button class="tool-chip" type="button" title="Shortcut: 1" data-tool="select">Select</button>
+        <button class="tool-chip" type="button" title="Shortcut: 2" data-tool="vertex">Vertex</button>
+        <button class="tool-chip" type="button" title="Shortcut: 3" data-tool="curve">Curve</button>
+        <button class="tool-chip" type="button" title="Shortcut: 4" data-tool="tee">Tee</button>
+        <button class="tool-chip" type="button" title="Shortcut: 5" data-tool="cup">Cup</button>
+        <button class="tool-chip" type="button" title="Shortcut: 6" data-tool="hazard">Hazard</button>
+        <button class="tool-chip" type="button" title="Shortcut: 7" data-tool="obstacle">Obstacle</button>
+        <button class="tool-chip" type="button" title="Shortcut: [ or ]" data-tool="cycle">Cycle</button>
+      </div>
+      <div id="editorContextChips" class="editor-context-chips"></div>
       <div id="editorSummary" style="font-size:0.85rem;color:var(--text-dim);line-height:1.45;margin-bottom:12px"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+      <div class="editor-info-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Course
           <select id="selEditorCourse" style="width:100%;margin-top:4px"></select>
         </label>
@@ -371,10 +420,10 @@
           <input id="inpEditorPar" type="number" min="1" max="8" style="width:100%;margin-top:4px">
         </label>
       </div>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Course Name
+      <label class="editor-info-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Course Name
         <input id="inpEditorCourseName" type="text" maxlength="40" style="width:100%;margin-top:4px">
       </label>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Tool
+      <label class="editor-build-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Tool
         <select id="selEditorTool" style="width:100%;margin-top:4px">
           <option value="select">Select / Edit Handles</option>
           <option value="vertex">Move Vertices</option>
@@ -385,7 +434,7 @@
           <option value="obstacle">Place Obstacles</option>
         </select>
       </label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+      <div class="editor-build-block editor-geo-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Curve Smoothness
           <input id="inpCurveSmoothness" type="number" min="1" max="5" step="1" style="width:100%;margin-top:4px">
         </label>
@@ -393,14 +442,14 @@
           <input id="inpCurveSamples" type="number" min="4" max="18" step="1" style="width:100%;margin-top:4px">
         </label>
       </div>
-      <button class="btn btn-secondary" id="btnSmoothCurves">~ Smooth Hole Curves</button>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Element Theme
+      <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnSmoothCurves">~ Smooth Hole Curves</button>
+      <label class="editor-build-block editor-hazard-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Element Theme
         <select id="selHazardTheme" style="width:100%;margin-top:4px"></select>
       </label>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
+      <label class="editor-build-block editor-hazard-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
         <select id="selEditorHazard" style="width:100%;margin-top:4px"></select>
       </label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+      <div class="editor-build-block editor-hazard-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Hazard Shape
           <select id="selHazardShape" style="width:100%;margin-top:4px">
             <option value="circle">Circle</option>
@@ -426,22 +475,22 @@
           <input id="inpHazardTimer" type="number" min="0.2" max="8" step="0.1" style="width:100%;margin-top:4px">
         </label>
       </div>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">
+      <label class="editor-build-block editor-hazard-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">
         <input id="chkHazardHidden" type="checkbox" style="margin-right:6px">Invisible In Play (editor preview only)
       </label>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Element Theme
+      <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Element Theme
         <select id="selObstacleTheme" style="width:100%;margin-top:4px"></select>
       </label>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Type (for Place Obstacles tool)
+      <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Type (for Place Obstacles tool)
         <select id="selEditorObstacle" style="width:100%;margin-top:4px"></select>
       </label>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Size
+      <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Size
         <input id="inpObstacleSize" type="number" min="20" max="280" step="1" style="width:100%;margin-top:4px">
       </label>
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Angle (degrees)
+      <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Angle (degrees)
         <input id="inpObstacleAngle" type="number" min="-180" max="180" step="1" style="width:100%;margin-top:4px">
       </label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+      <div class="editor-build-block editor-obstacle-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Obstacle Speed
           <input id="inpObstacleSpeed" type="number" min="0.1" max="5" step="0.1" style="width:100%;margin-top:4px">
         </label>
@@ -449,21 +498,21 @@
           <input id="inpObstaclePath" type="number" min="20" max="420" step="1" style="width:100%;margin-top:4px">
         </label>
       </div>
-      <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
+      <div class="editor-build-block" style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
         Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Shortcuts: 1-7 switch tools, [ and ] cycle tools.
       </div>
-      <button class="btn btn-primary" id="btnCreateCourse">＋ New 9-Hole Course</button>
-      <button class="btn btn-secondary" id="btnResetGeometry">◯ Reset Geometry (Rounded)</button>
-      <button class="btn btn-secondary" id="btnAddVertex">＋ Add Vertex</button>
-      <button class="btn btn-secondary" id="btnRemoveVertex">− Remove Vertex</button>
-      <button class="btn btn-secondary" id="btnClearHazards">Clear Hazards</button>
-      <button class="btn btn-secondary" id="btnClearObstacles">Clear Obstacles</button>
-      <button class="btn btn-secondary" id="btnDeleteSelected">Delete Selected</button>
-      <button class="btn btn-secondary" id="btnTestHole">▶ Test This Hole</button>
-      <button class="btn btn-primary" id="btnPlayCourse">▶ Play Full Custom Course</button>
-      <button class="btn btn-secondary" id="btnStopTest">■ Stop Testing</button>
-      <button class="btn btn-secondary" id="btnExportCourses">📦 Export JSON to Console</button>
-      <button class="btn btn-secondary" id="btnDeleteCourses">🗑 Delete All Custom Courses</button>
+      <button class="btn btn-primary editor-info-block" id="btnCreateCourse">＋ New 9-Hole Course</button>
+      <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnResetGeometry">◯ Reset Geometry (Rounded)</button>
+      <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnAddVertex">＋ Add Vertex</button>
+      <button class="btn btn-secondary editor-build-block editor-geo-block" id="btnRemoveVertex">− Remove Vertex</button>
+      <button class="btn btn-secondary editor-build-block editor-hazard-block" id="btnClearHazards">Clear Hazards</button>
+      <button class="btn btn-secondary editor-build-block editor-obstacle-block" id="btnClearObstacles">Clear Obstacles</button>
+      <button class="btn btn-secondary editor-build-block" id="btnDeleteSelected">Delete Selected</button>
+      <button class="btn btn-secondary editor-build-block" id="btnTestHole">▶ Test This Hole</button>
+      <button class="btn btn-primary editor-build-block" id="btnPlayCourse">▶ Play Full Custom Course</button>
+      <button class="btn btn-secondary editor-build-block" id="btnStopTest">■ Stop Testing</button>
+      <button class="btn btn-secondary editor-info-block" id="btnExportCourses">📦 Export JSON to Console</button>
+      <button class="btn btn-secondary editor-info-block" id="btnDeleteCourses">🗑 Delete All Custom Courses</button>
       <hr class="divider">
       <button class="btn btn-secondary" id="btnBackEditor">← Back</button>
     </div>
@@ -942,6 +991,7 @@ let gs = {               // game state object
     obstaclePath: 140,
     curveSmoothness: 3,
     curveSamples: 9,
+    viewTab: 'build',
     dragVertexIdx: -1,
     wallStart: null,
     pointer: {x: 0, y: 0},
@@ -1240,6 +1290,7 @@ function refreshEditorControls() {
   const inpObsAngle = document.getElementById('inpObstacleAngle');
   const inpObsSpeed = document.getElementById('inpObstacleSpeed');
   const inpObsPath = document.getElementById('inpObstaclePath');
+  const contextChips = document.getElementById('editorContextChips');
   const summary = document.getElementById('editorSummary');
 
   selCourse.innerHTML = '';
@@ -1369,6 +1420,14 @@ function refreshEditorControls() {
   inpObsSpeed.value = String(gs.editor.obstacleSpeed);
   inpObsPath.value = String(gs.editor.obstaclePath);
 
+  contextChips.innerHTML = [
+    `Hole Theme: ${formatThemeLabel(hole.theme || 'desert')}`,
+    `Hazard Theme: ${formatThemeLabel(gs.editor.hazardTheme)}`,
+    `Hazard: ${gs.editor.hazardType}`,
+    `Obstacle Theme: ${formatThemeLabel(gs.editor.obstacleTheme)}`,
+    `Obstacle: ${gs.editor.obstacleType}`,
+  ].map(text => `<span class="chip">${text}</span>`).join('');
+
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
     `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · ${hole.obstacles.length} obstacles · Theme ${hole.theme}. ` +
@@ -1383,6 +1442,19 @@ function refreshEditorControls() {
     const tool = btn.dataset.tool;
     btn.classList.toggle('active', tool === gs.editor.tool);
   });
+
+  document.getElementById('btnEditorTabBuild').classList.toggle('active', gs.editor.viewTab === 'build');
+  document.getElementById('btnEditorTabInfo').classList.toggle('active', gs.editor.viewTab === 'info');
+
+  const isGeo = gs.editor.tool === 'vertex' || gs.editor.tool === 'curve';
+  const showHaz = gs.editor.tool === 'hazard' || (gs.editor.tool === 'select' && gs.editor.selectedHazardIdx >= 0);
+  const showObs = gs.editor.tool === 'obstacle' || (gs.editor.tool === 'select' && gs.editor.selectedObstacleIdx >= 0);
+
+  document.querySelectorAll('.editor-info-block').forEach(el => el.classList.toggle('gone', gs.editor.viewTab !== 'info'));
+  document.querySelectorAll('.editor-build-block').forEach(el => el.classList.toggle('gone', gs.editor.viewTab !== 'build'));
+  document.querySelectorAll('.editor-geo-block').forEach(el => el.classList.toggle('gone', !isGeo || gs.editor.viewTab !== 'build'));
+  document.querySelectorAll('.editor-hazard-block').forEach(el => el.classList.toggle('gone', !showHaz || gs.editor.viewTab !== 'build'));
+  document.querySelectorAll('.editor-obstacle-block').forEach(el => el.classList.toggle('gone', !showObs || gs.editor.viewTab !== 'build'));
 }
 
 function setEditorTool(tool) {
@@ -1402,6 +1474,11 @@ function cycleEditorTool(dir) {
   const idx = tools.indexOf(gs.editor.tool);
   const next = idx < 0 ? 0 : (idx + dir + tools.length) % tools.length;
   setEditorTool(tools[next]);
+}
+
+function setEditorTab(tab) {
+  gs.editor.viewTab = tab === 'info' ? 'info' : 'build';
+  refreshEditorControls();
 }
 
 function moveObstacle(ob, dx, dy) {
@@ -2678,6 +2755,68 @@ function drawEditorOverlay(hole) {
     ctx.stroke();
   }
 
+  if (gs.editor.tool === 'hazard') {
+    const p = gs.editor.pointer;
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = 'rgba(255,230,130,0.95)';
+    ctx.fillStyle = 'rgba(255,230,130,0.16)';
+    ctx.lineWidth = 2;
+    if (gs.editor.hazardShape === 'rect') {
+      const w = clamp(gs.editor.hazardW, 8, 400);
+      const h = clamp(gs.editor.hazardH, 8, 400);
+      ctx.fillRect(p.x - w / 2, p.y - h / 2, w, h);
+      ctx.strokeRect(p.x - w / 2, p.y - h / 2, w, h);
+    } else {
+      const r = clamp(gs.editor.hazardRadius, 8, 220);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  if (gs.editor.tool === 'obstacle' && gs.editor.obstacleType !== 'wall') {
+    const p = gs.editor.pointer;
+    const s = clamp(gs.editor.obstacleSize, 20, 280);
+    const a = (Number(gs.editor.obstacleAngle) || 0) * Math.PI / 180;
+    const segs = [];
+    const pushSeg = (dx1, dy1, dx2, dy2) => {
+      segs.push({
+        x1: p.x + dx1 * Math.cos(a) - dy1 * Math.sin(a),
+        y1: p.y + dx1 * Math.sin(a) + dy1 * Math.cos(a),
+        x2: p.x + dx2 * Math.cos(a) - dy2 * Math.sin(a),
+        y2: p.y + dx2 * Math.sin(a) + dy2 * Math.cos(a),
+      });
+    };
+    const h = s * 0.5;
+    if (gs.editor.obstacleType === 'bar') pushSeg(-h, 0, h, 0);
+    else if (gs.editor.obstacleType === 'gate') { pushSeg(-h, -14, h, -14); pushSeg(-h, 14, h, 14); }
+    else if (gs.editor.obstacleType === 'cross') { pushSeg(-h, 0, h, 0); pushSeg(0, -h, 0, h); }
+    else if (gs.editor.obstacleType === 'zigzag') { pushSeg(-h, -20, 0, 20); pushSeg(0, 20, h, -20); }
+    else if (gs.editor.obstacleType === 'car' || gs.editor.obstacleType === 'timed_gate' || gs.editor.obstacleType === 'coffin') {
+      pushSeg(-h * 0.6, 0, h * 0.6, 0);
+    } else if (gs.editor.obstacleType === 'windmill') {
+      pushSeg(-h * 0.6, 0, h * 0.6, 0);
+      pushSeg(0, -h * 0.6, 0, h * 0.6);
+    } else {
+      pushSeg(-h, 0, h, 0);
+    }
+
+    ctx.save();
+    ctx.setLineDash([5, 3]);
+    ctx.strokeStyle = 'rgba(255,170,110,0.95)';
+    ctx.lineWidth = 2.5;
+    for (const s0 of segs) {
+      ctx.beginPath();
+      ctx.moveTo(s0.x1, s0.y1);
+      ctx.lineTo(s0.x2, s0.y2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   const sh = hole.hazards[gs.editor.selectedHazardIdx];
   if (sh) {
     ctx.strokeStyle = 'rgba(255,240,120,0.95)';
@@ -3584,6 +3723,7 @@ function showEditorScreen() {
     saveEditorData();
   }
   gs.editor.testing = false;
+  gs.editor.viewTab = 'build';
   gs.editor.wallStart = null;
   updateEditorPreviewHole();
   refreshEditorControls();
@@ -3680,6 +3820,9 @@ document.querySelectorAll('#editorQuickTools .tool-chip[data-tool]').forEach(btn
     setEditorTool(tool);
   });
 });
+
+document.getElementById('btnEditorTabBuild').addEventListener('click', () => setEditorTab('build'));
+document.getElementById('btnEditorTabInfo').addEventListener('click', () => setEditorTab('info'));
 
 document.getElementById('selHazardTheme').addEventListener('change', (e) => {
   gs.editor.hazardTheme = e.target.value || 'generic';
