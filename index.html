@@ -90,6 +90,35 @@
       text-align: left;
       padding: 18px 18px 20px;
     }
+    .editor-quickbar {
+      position: sticky;
+      top: -2px;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid var(--ui-border);
+      border-radius: 10px;
+      background: rgba(10, 20, 14, 0.92);
+      backdrop-filter: blur(3px);
+    }
+    .tool-chip {
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border-radius: 9px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 6px 4px;
+      cursor: pointer;
+    }
+    .tool-chip.active {
+      border-color: rgba(74, 222, 128, 0.7);
+      background: rgba(74, 222, 128, 0.18);
+      color: #d9ffea;
+    }
     @media (max-width: 820px) {
       .screen.editor-dock {
         justify-content: center;
@@ -317,6 +346,16 @@
   <div id="scrEditor" class="screen gone editor-dock">
     <div class="panel panel-wide">
       <div class="panel-heading">🛠 Course Editor</div>
+      <div class="editor-quickbar" id="editorQuickTools">
+        <button class="tool-chip" type="button" data-tool="select">1 Select</button>
+        <button class="tool-chip" type="button" data-tool="vertex">2 Vertex</button>
+        <button class="tool-chip" type="button" data-tool="curve">3 Curve</button>
+        <button class="tool-chip" type="button" data-tool="tee">4 Tee</button>
+        <button class="tool-chip" type="button" data-tool="cup">5 Cup</button>
+        <button class="tool-chip" type="button" data-tool="hazard">6 Hazard</button>
+        <button class="tool-chip" type="button" data-tool="obstacle">7 Obstacle</button>
+        <button class="tool-chip" type="button" data-tool="cycle">[ ] Cycle</button>
+      </div>
       <div id="editorSummary" style="font-size:0.85rem;color:var(--text-dim);line-height:1.45;margin-bottom:12px"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Course
@@ -411,7 +450,7 @@
         </label>
       </div>
       <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
-        Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Use Reset Geometry for a rounded rectangle starter hole.
+        Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Shortcuts: 1-7 switch tools, [ and ] cycle tools.
       </div>
       <button class="btn btn-primary" id="btnCreateCourse">＋ New 9-Hole Course</button>
       <button class="btn btn-secondary" id="btnResetGeometry">◯ Reset Geometry (Rounded)</button>
@@ -528,10 +567,11 @@ const OBSTACLE_CATALOG = [
   { id: 'dinosaur',      label: 'Dinosaur',               elementTheme: 'jungle', status: 'planned' },
   { id: 'volcano_spout', label: 'Volcano Spout',          elementTheme: 'volcano', status: 'planned' },
   { id: 'windmill',      label: 'Windmill',               elementTheme: 'farm', status: 'implemented' },
+  { id: 'coffin',        label: 'Coffin',                 elementTheme: 'haunted', status: 'implemented' },
   { id: 'tombstone',     label: 'Tombstone',              elementTheme: 'haunted', status: 'implemented' },
   { id: 'planet',        label: 'Planet',                 elementTheme: 'space', status: 'planned' },
   { id: 'target',        label: 'Target',                 elementTheme: 'medieval', status: 'implemented' },
-  { id: 'timed_gate',    label: 'Timed Gate',             elementTheme: 'cyber', status: 'planned' },
+  { id: 'timed_gate',    label: 'Timed Gate',             elementTheme: 'cyber', status: 'implemented' },
   { id: 'trampoline',    label: 'Trampoline',             elementTheme: 'carnival', status: 'implemented' },
   { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'planned' },
   { id: 'beach_ball',    label: 'Beach Ball',             elementTheme: 'beach', status: 'implemented' },
@@ -1338,6 +1378,45 @@ function refreshEditorControls() {
   if (hole.polygon.length > 120) {
     summary.textContent += ' Geometry is dense; smoothing will auto-optimize for performance.';
   }
+
+  document.querySelectorAll('#editorQuickTools .tool-chip[data-tool]').forEach(btn => {
+    const tool = btn.dataset.tool;
+    btn.classList.toggle('active', tool === gs.editor.tool);
+  });
+}
+
+function setEditorTool(tool) {
+  const tools = ['select', 'vertex', 'curve', 'tee', 'cup', 'hazard', 'obstacle'];
+  if (!tools.includes(tool)) return;
+  gs.editor.tool = tool;
+  gs.editor.dragVertexIdx = -1;
+  gs.editor.wallStart = null;
+  gs.editor.curveDrag = null;
+  gs.editor.dragKind = '';
+  gs.editor.dragAnchor = null;
+  refreshEditorControls();
+}
+
+function cycleEditorTool(dir) {
+  const tools = ['select', 'vertex', 'curve', 'tee', 'cup', 'hazard', 'obstacle'];
+  const idx = tools.indexOf(gs.editor.tool);
+  const next = idx < 0 ? 0 : (idx + dir + tools.length) % tools.length;
+  setEditorTool(tools[next]);
+}
+
+function moveObstacle(ob, dx, dy) {
+  ob.x1 = clamp(ob.x1 + dx, 18, CW - 18);
+  ob.y1 = clamp(ob.y1 + dy, 18, CH - 18);
+  ob.x2 = clamp(ob.x2 + dx, 18, CW - 18);
+  ob.y2 = clamp(ob.y2 + dy, 18, CH - 18);
+  if (ob.dynamicType === 'windmill') {
+    ob.pivotX = clamp((Number(ob.pivotX) || 0) + dx, 18, CW - 18);
+    ob.pivotY = clamp((Number(ob.pivotY) || 0) + dy, 18, CH - 18);
+  }
+  if (ob.dynamicType === 'car') {
+    ob.baseX = clamp((Number(ob.baseX) || 0) + dx, 18, CW - 18);
+    ob.baseY = clamp((Number(ob.baseY) || 0) + dy, 18, CH - 18);
+  }
 }
 
 function applyThemeToHole(hole, themeName) {
@@ -1471,6 +1550,28 @@ function placePresetObstacle(hole, c) {
       pathLen: motionPath,
       moveSpeed: motionSpeed,
       phase: Math.random() * Math.PI * 2,
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'timed_gate' || gs.editor.obstacleType === 'coffin') {
+    const a = (Number(gs.editor.obstacleAngle) || 0) * Math.PI / 180;
+    const half = s * 0.45;
+    const x1 = c.x - Math.cos(a) * half;
+    const y1 = c.y - Math.sin(a) * half;
+    const x2 = c.x + Math.cos(a) * half;
+    const y2 = c.y + Math.sin(a) * half;
+    hole.obstacles.push({
+      x1: clamp(x1, 18, CW - 18),
+      y1: clamp(y1, 18, CH - 18),
+      x2: clamp(x2, 18, CW - 18),
+      y2: clamp(y2, 18, CH - 18),
+      kind: gs.editor.obstacleType,
+      size: s,
+      dynamicType: gs.editor.obstacleType,
+      moveSpeed: motionSpeed,
+      phase: Math.random() * Math.PI * 2,
+      openFraction: 0,
     });
     return;
   }
@@ -1765,7 +1866,12 @@ function getWalls(hole) {
     const a = poly[i], b = poly[(i + 1) % poly.length];
     walls.push({x1: a.x, y1: a.y, x2: b.x, y2: b.y});
   }
-  for (const ob of hole.obstacles) walls.push(ob);
+  for (const ob of hole.obstacles) {
+    if ((ob.dynamicType === 'timed_gate' || ob.dynamicType === 'coffin') && (Number(ob.openFraction) || 0) > 0.6) {
+      continue;
+    }
+    walls.push(ob);
+  }
   return walls;
 }
 
@@ -1797,6 +1903,12 @@ function updateDynamicObstacles(hole, tSec) {
       ob.y1 = clamp(cy - Math.sin(perp) * half, 18, CH - 18);
       ob.x2 = clamp(cx + Math.cos(perp) * half, 18, CW - 18);
       ob.y2 = clamp(cy + Math.sin(perp) * half, 18, CH - 18);
+      continue;
+    }
+    if (ob.dynamicType === 'timed_gate' || ob.dynamicType === 'coffin') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      const open = (Math.sin(tSec * speed * 2 + (Number(ob.phase) || 0)) + 1) * 0.5;
+      ob.openFraction = open;
     }
   }
 }
@@ -2649,7 +2761,7 @@ function drawObstacles(hole) {
       ctx.arc(mx + 2, my - 2, 10, 0, Math.PI * 2);
       ctx.arc(mx + 12, my + 1, 7, 0, Math.PI * 2);
       ctx.fill();
-    } else if (ob.kind === 'windmill' || ob.kind === 'cogs') {
+    } else if (ob.kind === 'cogs') {
       const t = performance.now() / 450;
       ctx.strokeStyle = 'rgba(228,236,245,0.8)';
       ctx.lineWidth = 2;
@@ -2675,6 +2787,30 @@ function drawObstacles(hole) {
       ctx.beginPath();
       ctx.arc(mx, my, 5, 0, Math.PI * 2);
       ctx.fill();
+    } else if (ob.kind === 'timed_gate') {
+      const open = Number(ob.openFraction) || 0;
+      ctx.strokeStyle = open > 0.6 ? 'rgba(110,250,198,0.45)' : 'rgba(110,250,198,0.95)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(ob.x1, ob.y1);
+      ctx.lineTo(ob.x2, ob.y2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(110,250,198,0.8)';
+      ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2); ctx.fill();
+    } else if (ob.kind === 'coffin') {
+      const open = Number(ob.openFraction) || 0;
+      const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      const bodyLen = Math.max(24, dist(ob.x1, ob.y1, ob.x2, ob.y2));
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(a);
+      ctx.fillStyle = 'rgba(89,61,43,0.95)';
+      roundRect(ctx, -bodyLen * 0.5, -8, bodyLen, 16, 5);
+      ctx.fill();
+      ctx.fillStyle = `rgba(135,96,67,${0.3 + open * 0.6})`;
+      roundRect(ctx, -bodyLen * 0.48, -6, bodyLen * 0.96, 12, 4);
+      ctx.fill();
+      ctx.restore();
     } else if (ob.kind === 'car') {
       const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
       const len2 = Math.max(20, dist(ob.x1, ob.y1, ob.x2, ob.y2) * 1.9);
@@ -2929,7 +3065,9 @@ function onPointerDown(e) {
         if (obPick.idx >= 0) {
           gs.editor.selectedObstacleIdx = obPick.idx;
           gs.editor.selectedHazardIdx = -1;
-          gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : '';
+          gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : 'ob_line';
+          gs.editor.dragDX = c.x;
+          gs.editor.dragDY = c.y;
           refreshEditorControls();
         } else {
           gs.editor.selectedHazardIdx = -1;
@@ -3077,6 +3215,16 @@ function onPointerMove(e) {
     }
     if (ob && gs.editor.dragKind === 'ob_b') {
       ob.x2 = p.x; ob.y2 = p.y;
+      saveEditorData();
+      e.preventDefault();
+      return;
+    }
+    if (ob && gs.editor.dragKind === 'ob_line') {
+      const dx = p.x - gs.editor.dragDX;
+      const dy = p.y - gs.editor.dragDY;
+      moveObstacle(ob, dx, dy);
+      gs.editor.dragDX = p.x;
+      gs.editor.dragDY = p.y;
       saveEditorData();
       e.preventDefault();
       return;
@@ -3519,12 +3667,18 @@ document.getElementById('inpEditorCourseName').addEventListener('change', (e) =>
 });
 
 document.getElementById('selEditorTool').addEventListener('change', (e) => {
-  gs.editor.tool = e.target.value;
-  gs.editor.dragVertexIdx = -1;
-  gs.editor.wallStart = null;
-  gs.editor.curveDrag = null;
-  gs.editor.dragKind = '';
-  gs.editor.dragAnchor = null;
+  setEditorTool(e.target.value);
+});
+
+document.querySelectorAll('#editorQuickTools .tool-chip[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tool = btn.dataset.tool;
+    if (tool === 'cycle') {
+      cycleEditorTool(1);
+      return;
+    }
+    setEditorTool(tool);
+  });
 });
 
 document.getElementById('selHazardTheme').addEventListener('change', (e) => {
@@ -3861,6 +4015,35 @@ document.getElementById('btnBackEditor').addEventListener('click', () => {
 
 // ESC / P key to pause or resume
 document.addEventListener('keydown', (e) => {
+  const tag = String(e.target?.tagName || '').toLowerCase();
+  const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target?.isContentEditable;
+  if (gs.state === State.EDITOR && !isTyping) {
+    if (e.key >= '1' && e.key <= '7') {
+      const map = {
+        '1': 'select',
+        '2': 'vertex',
+        '3': 'curve',
+        '4': 'tee',
+        '5': 'cup',
+        '6': 'hazard',
+        '7': 'obstacle',
+      };
+      setEditorTool(map[e.key]);
+      e.preventDefault();
+      return;
+    }
+    if (e.key === '[') {
+      cycleEditorTool(-1);
+      e.preventDefault();
+      return;
+    }
+    if (e.key === ']') {
+      cycleEditorTool(1);
+      e.preventDefault();
+      return;
+    }
+  }
+
   if ((e.key === 'e' || e.key === 'E') && gs.editor.testing && gs.state === State.PLAYING) {
     stopEditorHoleTest();
     return;
