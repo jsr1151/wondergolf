@@ -1,10 +1,17 @@
 name: Auto-merge Copilot PRs
 
-# Fires whenever the Copilot agent opens or updates a PR, and again when
-# a draft PR is marked ready for review.
+# pull_request_target runs from the base-branch context (write permissions,
+# no "require approval" gate) — required for the Copilot bot actor.
+# workflow_dispatch lets a maintainer manually trigger the merge for any PR.
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to merge'
+        required: true
+        type: number
 
 permissions:
   contents: write       # needed to merge
@@ -12,10 +19,25 @@ permissions:
 
 jobs:
   automerge:
-    # Only run for PRs authored by the Copilot coding agent
-    if: github.actor == 'Copilot' || github.actor == 'copilot-swe-agent[bot]'
+    # For pull_request_target: only run for PRs authored by the Copilot coding agent.
+    # For workflow_dispatch: always run (maintainer-initiated).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.user.login == 'Copilot' ||
+      github.event.pull_request.user.login == 'copilot-swe-agent[bot]'
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve PR number
+        id: pr
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          EVENT: ${{ github.event_name }}
+
       - name: Convert draft → ready (if needed)
         run: |
           if gh pr view "$PR" --repo "$REPO" --json isDraft -q '.isDraft' | grep -q true; then
@@ -23,12 +45,12 @@ jobs:
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ steps.pr.outputs.number }}
           REPO: ${{ github.repository }}
 
       - name: Merge PR into main
         run: gh pr merge "$PR" --repo "$REPO" --squash --delete-branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
+          PR: ${{ steps.pr.outputs.number }}
           REPO: ${{ github.repository }}
