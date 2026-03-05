@@ -238,6 +238,17 @@
     </div>
   </div>
 
+  <!-- ── PAUSE / SETTINGS ──────────────────────────────────── -->
+  <div id="scrPause" class="screen gone">
+    <div class="panel">
+      <div class="panel-heading">⚙ Settings</div>
+      <div id="pauseHoleInfo" style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px"></div>
+      <button class="btn btn-primary"   id="btnResume">▶ Resume</button>
+      <hr class="divider">
+      <button class="btn btn-secondary" id="btnPauseMenu">🏠 Main Menu</button>
+    </div>
+  </div>
+
   <!-- ── PROFILE ────────────────────────────────────────────── -->
   <div id="scrProfile" class="screen gone">
     <div class="panel">
@@ -263,8 +274,8 @@
 const CW = 800, CH = 540;          // canvas logical dimensions
 const BALL_R      = 6;             // ball radius px
 const CUP_R       = 10;            // cup radius px
-const CUP_SINK_D  = 9;             // max dist to sink (px)
-const CUP_SINK_V  = 1.6;           // max speed to sink
+const CUP_SINK_D  = 14;            // max dist to sink (px)
+const CUP_SINK_V  = 3.5;           // max speed to sink
 const MAX_POWER   = 24;            // pixels/frame at full pull
 const PULL_SCALE  = 140;           // px drag → power mapping (full at 140px drag)
 const BOUNCE_DAMP = 0.70;          // velocity multiplier on wall bounce
@@ -276,6 +287,7 @@ const FRICTION = {
   normal : 0.988,
   sand   : 0.90,
   slick  : 0.996,
+  water  : 0.78,   // heavy drag — slows ball fast but lets it pass through
 };
 
 // XP rewards by score relative to par
@@ -539,6 +551,7 @@ const State = {
   HOLE_COMPLETE: 'hole_complete',
   SCORECARD:     'scorecard',
   PROFILE:       'profile',
+  PAUSED:        'paused',
 };
 
 let gs = {               // game state object
@@ -598,19 +611,22 @@ function getLevelInfo(xp) {
 // ══════════════════════════════════════════════════════════════
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
-canvas.width  = CW;
-canvas.height = CH;
+// canvas dimensions set by resizeCanvas() to match DPR
 
 let scale = 1, offsetX = 0, offsetY = 0;
 
 function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
   const vw = window.innerWidth, vh = window.innerHeight;
   scale   = Math.min(vw / CW, vh / CH);
-  const w = CW * scale, h = CH * scale;
-  canvas.style.width  = w + 'px';
-  canvas.style.height = h + 'px';
-  offsetX = (vw - w) / 2;
-  offsetY = (vh - h) / 2;
+  const cssW = Math.round(CW * scale), cssH = Math.round(CH * scale);
+  // Set physical pixel count so canvas is sharp on high-DPI screens
+  canvas.width  = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  offsetX = (vw - cssW) / 2;
+  offsetY = (vh - cssH) / 2;
 }
 
 window.addEventListener('resize', resizeCanvas);
@@ -757,6 +773,7 @@ function getFriction(ball, hole) {
     if (inHazard(ball.x, ball.y, hz)) {
       if (hz.type === 'sand')  return FRICTION.sand;
       if (hz.type === 'slick') return FRICTION.slick;
+      if (hz.type === 'water') return FRICTION.water;
     }
   }
   return FRICTION.normal;
@@ -1154,7 +1171,7 @@ function drawHUD() {
     { label: hole.name, value: '' },
   ];
 
-  const itemW = CW / items.length;
+  const itemW = (CW - 60) / items.length;  // leave room for settings btn
   items.forEach((item, i) => {
     const cx = itemW * i + itemW / 2;
     ctx.fillStyle = 'rgba(150,170,155,0.75)';
@@ -1167,6 +1184,17 @@ function drawHUD() {
       ctx.fillText(item.value, cx, 33);
     }
   });
+
+  // Settings / pause button (top-right)
+  const btnX = CW - 28, btnY = 12;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  roundRect(ctx, btnX - 4, 6, 36, 32, 7);
+  ctx.fill();
+  ctx.font = '18px system-ui';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(240,240,240,0.85)';
+  ctx.fillText('⚙', btnX + 14, btnY + 16);
+
   ctx.restore();
 }
 
@@ -1184,6 +1212,8 @@ function drawHint() {
 
 /** Master render call */
 function render() {
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
   ctx.clearRect(0, 0, CW, CH);
   drawBackground();
 
@@ -1273,9 +1303,18 @@ function getEventPos(e) {
 
 function onPointerDown(e) {
   if (gs.state !== State.PLAYING) return;
-  if (gs.ball.moving) return;
 
   const p = getEventPos(e);
+
+  // Settings / pause button hit area (top-right of HUD)
+  if (p.y < 44 && p.x >= CW - 52) {
+    e.preventDefault();
+    showPauseScreen();
+    return;
+  }
+
+  if (gs.ball.moving) return;
+
   const d = dist(p.x, p.y, gs.ball.x, gs.ball.y);
   if (d > 30) return;  // must click near ball
 
@@ -1441,6 +1480,7 @@ const screens = {
   holeComplete: document.getElementById('scrHoleComplete'),
   scorecard: document.getElementById('scrScorecard'),
   profile:  document.getElementById('scrProfile'),
+  pause:    document.getElementById('scrPause'),
 };
 
 function showScreen(name) {
@@ -1523,6 +1563,16 @@ function showScorecard() {
   showScreen('scorecard');
 }
 
+function showPauseScreen() {
+  const hole = gs.hole;
+  const info = hole
+    ? `Hole ${gs.holeIdx + 1} of ${HOLES_PER_ROUND} · ${hole.name} · ${gs.strokes} stroke${gs.strokes !== 1 ? 's' : ''}`
+    : '';
+  document.getElementById('pauseHoleInfo').textContent = info;
+  gs.state = State.PAUSED;
+  showScreen('pause');
+}
+
 function showProfile() {
   const prof    = loadProfile();
   const lvInfo  = getLevelInfo(prof.xp || 0);
@@ -1576,6 +1626,17 @@ document.getElementById('btnPlayAgain').addEventListener('click', () => {
   startRound();
 });
 
+document.getElementById('btnResume').addEventListener('click', () => {
+  gs.state = State.PLAYING;
+  showScreen('');
+});
+
+document.getElementById('btnPauseMenu').addEventListener('click', () => {
+  gs.hole  = null;
+  gs.state = State.MENU;
+  showScreen('menu');
+});
+
 document.getElementById('btnSCMenu').addEventListener('click', () => {
   gs.state = State.MENU;
   showScreen('menu');
@@ -1584,6 +1645,18 @@ document.getElementById('btnSCMenu').addEventListener('click', () => {
 document.getElementById('btnBackProfile').addEventListener('click', () => {
   gs.state = State.MENU;
   showScreen('menu');
+});
+
+// ESC / P key to pause or resume
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+    if (gs.state === State.PLAYING) {
+      showPauseScreen();
+    } else if (gs.state === State.PAUSED) {
+      gs.state = State.PLAYING;
+      showScreen('');
+    }
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -1599,27 +1672,26 @@ function gameLoop() {
     if (ball.moving) {
       physicsTick(ball, hole);
 
-      // Track last safe position (update only when outside water)
       const inWaterNow = !!getWaterHazard(ball, hole);
+
+      // Track last safe position (only when outside water)
       if (!inWaterNow) {
         gs.lastSafe    = { x: ball.x, y: ball.y };
         gs.ballInWater = false;
       }
 
-      // Water penalty: trigger immediately on first frame the ball enters water
-      if (inWaterNow && !gs.ballInWater) {
-        gs.ballInWater = true;
-        applyWaterPenalty();
-        // Ball has been reset to lastSafe — skip further checks this frame
-      } else {
-        // Cup check (ball must be slow enough and close enough)
-        if (checkCup()) {
-          triggerSink();
-        }
+      // Cup check (only when outside water)
+      if (!inWaterNow && checkCup()) {
+        triggerSink();
+      }
 
-        // Auto-advance when max strokes reached and ball has stopped
-        if (!ball.moving && gs.strokes >= hole.par + MAX_OVER_PAR) {
-          // Skip sinking animation — just end the hole immediately
+      // Ball has come to rest — check consequences
+      if (!ball.moving && gs.state === State.PLAYING) {
+        if (inWaterNow) {
+          // Ball stopped inside water — apply penalty and reset
+          applyWaterPenalty();
+        } else if (gs.strokes >= hole.par + MAX_OVER_PAR) {
+          // Auto-advance: too many strokes
           gs.scores.push(gs.strokes);
           checkAndUnlockAchievements();
           if (gs.holeIdx + 1 >= HOLES_PER_ROUND) {
