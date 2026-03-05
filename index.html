@@ -204,6 +204,7 @@
         <div class="leg-item"><div class="leg-dot" style="background:var(--slick-color)"></div>Slick (−friction)</div>
       </div>
       <button class="btn btn-primary"   id="btnPlay">🏌️ Play Today's Round</button>
+      <button class="btn btn-secondary" id="btnEditor">🛠 Course Editor</button>
       <button class="btn btn-secondary" id="btnProfile" aria-label="Profile and Achievements">👤 Profile &amp; Achievements</button>
     </div>
   </div>
@@ -259,9 +260,25 @@
         <div class="xp-label" id="profXPLabel"></div>
       </div>
       <hr class="divider">
+      <div id="profBattlepass" style="font-size:0.82rem;color:var(--text-dim);line-height:1.45;margin-bottom:8px"></div>
+      <div id="profInventory" style="font-size:0.82rem;color:var(--text-dim);line-height:1.45;margin-bottom:6px"></div>
+      <hr class="divider">
       <div style="font-size:0.85rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Achievements</div>
       <div class="ach-grid" id="achGrid"></div>
       <button class="btn btn-secondary" id="btnBackProfile" style="margin-top:16px">← Back</button>
+    </div>
+  </div>
+
+  <!-- ── COURSE EDITOR (FOUNDATION) ────────────────────────── -->
+  <div id="scrEditor" class="screen gone">
+    <div class="panel panel-wide">
+      <div class="panel-heading">🛠 Course Editor</div>
+      <div id="editorSummary" style="font-size:0.85rem;color:var(--text-dim);line-height:1.45;margin-bottom:12px"></div>
+      <button class="btn btn-primary" id="btnCreateCourse">＋ New 9-Hole Course</button>
+      <button class="btn btn-secondary" id="btnExportCourses">📦 Export JSON to Console</button>
+      <button class="btn btn-secondary" id="btnDeleteCourses">🗑 Delete All Custom Courses</button>
+      <hr class="divider">
+      <button class="btn btn-secondary" id="btnBackEditor">← Back</button>
     </div>
   </div>
 </div><!-- #wrap -->
@@ -310,6 +327,57 @@ const LEVELS = [
   { xp:22000, title: 'Tour Pro'         },
   { xp:30000, title: '⭐ Legend'         },
 ];
+
+const THEME_CATALOG = [
+  'desert', 'candy', 'jungle', 'lava', 'farm', 'haunted', 'space', 'medieval', 'cyber', 'carnival',
+  'mountain', 'beach', 'underwater', 'urban', 'western', 'asian', 'factory', 'sky', 'mythology', 'cavern',
+  'fairy tale', 'war',
+];
+
+const HAZARD_CATALOG = [
+  { id: 'sand',            label: 'Sand Trap',      status: 'implemented' },
+  { id: 'water',           label: 'Water Trap',     status: 'implemented' },
+  { id: 'slick',           label: 'Slick Zone',     status: 'implemented' },
+  { id: 'lava',            label: 'Lava Trap',      status: 'planned' },
+  { id: 'sticky',          label: 'Sticky Trap',    status: 'planned' },
+  { id: 'ramp',            label: 'Ramp',           status: 'planned' },
+  { id: 'windmill',        label: 'Windmill',       status: 'planned' },
+  { id: 'timed_gate',      label: 'Timed Gate',     status: 'planned' },
+  { id: 'pressure_plate',  label: 'Pressure Plate', status: 'planned' },
+  { id: 'wind_turbine',    label: 'Wind Turbine',   status: 'planned' },
+  { id: 'mudpit',          label: 'Mudpit',         status: 'planned' },
+  { id: 'cannon',          label: 'Cannon',         status: 'planned' },
+  { id: 'trebuchet',       label: 'Trebuchet',      status: 'planned' },
+  { id: 'bubbles',         label: 'Bubbles',        status: 'planned' },
+  { id: 'cars',            label: 'Cars',           status: 'planned' },
+  { id: 'barrier',         label: 'Barrier',        status: 'planned' },
+  { id: 'bomb',            label: 'Bomb',           status: 'planned' },
+];
+
+const CLUBS = [
+  { id: 'starter_putter', name: 'Starter Putter', unlock: { type: 'default' }, premiumOnly: false },
+  { id: 'oak_putter',     name: 'Oak Putter',     unlock: { type: 'level', value: 3 }, premiumOnly: false },
+  { id: 'neon_driver',    name: 'Neon Driver',    unlock: { type: 'battlepass', value: 4 }, premiumOnly: false },
+  { id: 'obsidian_blade', name: 'Obsidian Blade', unlock: { type: 'battlepass', value: 12 }, premiumOnly: true },
+];
+
+const BALLS = [
+  { id: 'classic_white', name: 'Classic White', unlock: { type: 'default' }, premiumOnly: false },
+  { id: 'mint_swirl',    name: 'Mint Swirl',    unlock: { type: 'level', value: 5 }, premiumOnly: false },
+  { id: 'solar_orb',     name: 'Solar Orb',     unlock: { type: 'battlepass', value: 7 }, premiumOnly: false },
+  { id: 'void_pearl',    name: 'Void Pearl',    unlock: { type: 'battlepass', value: 15 }, premiumOnly: true },
+];
+
+const BATTLEPASS = {
+  seasonId: 'season_1_founders',
+  tierSizeXP: 300,
+  tiers: [
+    { tier: 1,  free: { type: 'club', id: 'oak_putter' },     premium: { type: 'ball', id: 'void_pearl' } },
+    { tier: 4,  free: { type: 'club', id: 'neon_driver' },    premium: { type: 'xp_boost', value: 0.1 } },
+    { tier: 7,  free: { type: 'ball', id: 'solar_orb' },      premium: { type: 'club', id: 'obsidian_blade' } },
+    { tier: 10, free: { type: 'title', id: 'Course Artist' }, premium: { type: 'title', id: 'Master Patron' } },
+  ],
+};
 
 // ══════════════════════════════════════════════════════════════
 //  SEEDED PRNG (mulberry32)
@@ -552,6 +620,7 @@ const State = {
   SCORECARD:     'scorecard',
   PROFILE:       'profile',
   PAUSED:        'paused',
+  EDITOR:        'editor',
 };
 
 let gs = {               // game state object
@@ -576,23 +645,107 @@ let gs = {               // game state object
 
   // Flags
   ballInWater: false,
+  customCourses: [],
 };
 
 // ══════════════════════════════════════════════════════════════
 //  LOCAL STORAGE  (XP, level, achievements)
 // ══════════════════════════════════════════════════════════════
 const LS_KEY = 'wondergolf_v1';
+const LS_CUSTOM_COURSES_KEY = 'wondergolf_custom_courses_v1';
+
+function makeDefaultProfile() {
+  return {
+    xp: 0,
+    achievements: [],
+    ownedClubs: ['starter_putter'],
+    ownedBalls: ['classic_white'],
+    premium: false,
+    battlepass: {
+      seasonId: BATTLEPASS.seasonId,
+      xp: 0,
+      claimedFreeTiers: [],
+      claimedPremiumTiers: [],
+    },
+  };
+}
+
+function normalizeProfile(prof) {
+  const base = makeDefaultProfile();
+  const p = prof && typeof prof === 'object' ? prof : {};
+  const out = {
+    ...base,
+    ...p,
+    achievements: Array.isArray(p.achievements) ? p.achievements : base.achievements,
+    ownedClubs: Array.isArray(p.ownedClubs) ? p.ownedClubs : base.ownedClubs,
+    ownedBalls: Array.isArray(p.ownedBalls) ? p.ownedBalls : base.ownedBalls,
+    battlepass: {
+      ...base.battlepass,
+      ...(p.battlepass && typeof p.battlepass === 'object' ? p.battlepass : {}),
+      claimedFreeTiers: Array.isArray(p.battlepass?.claimedFreeTiers) ? p.battlepass.claimedFreeTiers : base.battlepass.claimedFreeTiers,
+      claimedPremiumTiers: Array.isArray(p.battlepass?.claimedPremiumTiers) ? p.battlepass.claimedPremiumTiers : base.battlepass.claimedPremiumTiers,
+    },
+  };
+
+  if (out.battlepass.seasonId !== BATTLEPASS.seasonId) {
+    out.battlepass = { ...base.battlepass };
+  }
+  return out;
+}
 
 function loadProfile() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return normalizeProfile(JSON.parse(raw));
   } catch (_) {}
-  return { xp: 0, achievements: [] };
+  return makeDefaultProfile();
 }
 
 function saveProfile(prof) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(prof)); } catch (_) {}
+  try { localStorage.setItem(LS_KEY, JSON.stringify(normalizeProfile(prof))); } catch (_) {}
+}
+
+function loadCustomCourses() {
+  try {
+    const raw = localStorage.getItem(LS_CUSTOM_COURSES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveCustomCourses(courses) {
+  try { localStorage.setItem(LS_CUSTOM_COURSES_KEY, JSON.stringify(courses)); } catch (_) {}
+}
+
+function getBattlepassTier(bpXP) {
+  return Math.floor(Math.max(0, bpXP) / BATTLEPASS.tierSizeXP) + 1;
+}
+
+function makeBlankHole(i) {
+  return {
+    name: `Custom Hole ${i + 1}`,
+    par: 3,
+    theme: 'desert',
+    polygon: [
+      {x: 40,y:155}, {x:760,y:155},
+      {x:760,y:395}, {x: 40,y:395},
+    ],
+    ball: {x: 90, y:275},
+    cup: {x:710, y:275},
+    hazards: [],
+    obstacles: [],
+  };
+}
+
+function makeBlankCourse() {
+  return {
+    id: `course_${Date.now()}`,
+    name: `Custom Course ${loadCustomCourses().length + 1}`,
+    createdAt: Date.now(),
+    holes: Array.from({ length: HOLES_PER_ROUND }, (_, i) => makeBlankHole(i)),
+  };
 }
 
 function getLevelInfo(xp) {
@@ -1481,6 +1634,7 @@ const screens = {
   scorecard: document.getElementById('scrScorecard'),
   profile:  document.getElementById('scrProfile'),
   pause:    document.getElementById('scrPause'),
+  editor:   document.getElementById('scrEditor'),
 };
 
 function showScreen(name) {
@@ -1501,6 +1655,7 @@ function showHoleComplete(afterNext) {
   // Save XP
   const prof = loadProfile();
   prof.xp = (prof.xp || 0) + xp;
+  prof.battlepass.xp = (prof.battlepass.xp || 0) + xp;
   saveProfile(prof);
 
   document.getElementById('hcHoleName').textContent =
@@ -1577,6 +1732,7 @@ function showProfile() {
   const prof    = loadProfile();
   const lvInfo  = getLevelInfo(prof.xp || 0);
   const unlocked = new Set(prof.achievements || []);
+  const bpTier = getBattlepassTier(prof.battlepass.xp || 0);
 
   document.getElementById('profLevel').textContent =
     `Level ${lvInfo.level} · ${lvInfo.title}`;
@@ -1584,6 +1740,10 @@ function showProfile() {
     `${Math.round(lvInfo.prog * 100)}%`;
   document.getElementById('profXPLabel').textContent =
     `${lvInfo.xp} total XP  ·  ${lvInfo.xp - lvInfo.cur} / ${lvInfo.next - lvInfo.cur} to next level`;
+  document.getElementById('profBattlepass').textContent =
+    `Battle Pass (${BATTLEPASS.seasonId}): Tier ${bpTier} · ${prof.battlepass.xp} XP · ${prof.premium ? 'Premium active' : 'Free track'}`;
+  document.getElementById('profInventory').textContent =
+    `Inventory: ${prof.ownedClubs.length} club(s), ${prof.ownedBalls.length} ball(s) · Catalog: ${CLUBS.length} clubs, ${BALLS.length} balls`;
 
   const grid = document.getElementById('achGrid');
   grid.innerHTML = '';
@@ -1603,11 +1763,25 @@ function showProfile() {
   showScreen('profile');
 }
 
+function showEditorScreen() {
+  gs.customCourses = loadCustomCourses();
+  const totalHoles = gs.customCourses.reduce((sum, c) => sum + (Array.isArray(c.holes) ? c.holes.length : 0), 0);
+  const plannedHazards = HAZARD_CATALOG.filter(h => h.status === 'planned').length;
+  document.getElementById('editorSummary').textContent =
+    `${gs.customCourses.length} custom course(s), ${totalHoles} designed hole(s). ${THEME_CATALOG.length} themes available. ${plannedHazards} hazard types queued.`;
+  gs.state = State.EDITOR;
+  showScreen('editor');
+}
+
 // ══════════════════════════════════════════════════════════════
 //  BUTTON WIRING
 // ══════════════════════════════════════════════════════════════
 document.getElementById('btnPlay').addEventListener('click', () => {
   startRound();
+});
+
+document.getElementById('btnEditor').addEventListener('click', () => {
+  showEditorScreen();
 });
 
 document.getElementById('btnProfile').addEventListener('click', () => {
@@ -1643,6 +1817,28 @@ document.getElementById('btnSCMenu').addEventListener('click', () => {
 });
 
 document.getElementById('btnBackProfile').addEventListener('click', () => {
+  gs.state = State.MENU;
+  showScreen('menu');
+});
+
+document.getElementById('btnCreateCourse').addEventListener('click', () => {
+  gs.customCourses = loadCustomCourses();
+  gs.customCourses.push(makeBlankCourse());
+  saveCustomCourses(gs.customCourses);
+  showEditorScreen();
+});
+
+document.getElementById('btnExportCourses').addEventListener('click', () => {
+  gs.customCourses = loadCustomCourses();
+  console.log('WonderGolf custom courses export:', JSON.stringify(gs.customCourses, null, 2));
+});
+
+document.getElementById('btnDeleteCourses').addEventListener('click', () => {
+  saveCustomCourses([]);
+  showEditorScreen();
+});
+
+document.getElementById('btnBackEditor').addEventListener('click', () => {
   gs.state = State.MENU;
   showScreen('menu');
 });
