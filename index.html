@@ -337,6 +337,7 @@
       </label>
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Tool
         <select id="selEditorTool" style="width:100%;margin-top:4px">
+          <option value="select">Select / Edit Handles</option>
           <option value="vertex">Move Vertices</option>
           <option value="tee">Set Tee Position</option>
           <option value="cup">Set Cup Position</option>
@@ -347,6 +348,23 @@
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
         <select id="selEditorHazard" style="width:100%;margin-top:4px"></select>
       </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+        <label style="font-size:0.78rem;color:var(--text-dim)">Hazard Shape
+          <select id="selHazardShape" style="width:100%;margin-top:4px">
+            <option value="circle">Circle</option>
+            <option value="rect">Rectangle</option>
+          </select>
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Radius
+          <input id="inpHazardRadius" type="number" min="8" max="220" step="1" style="width:100%;margin-top:4px">
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Width
+          <input id="inpHazardW" type="number" min="8" max="400" step="1" style="width:100%;margin-top:4px">
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Height
+          <input id="inpHazardH" type="number" min="8" max="400" step="1" style="width:100%;margin-top:4px">
+        </label>
+      </div>
       <div style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
         Canvas editing: drag vertices with Move Vertices tool. Click to place tee/cup/hazards. Use Reset Geometry for a rounded rectangle starter hole.
       </div>
@@ -356,6 +374,7 @@
       <button class="btn btn-secondary" id="btnRemoveVertex">− Remove Vertex</button>
       <button class="btn btn-secondary" id="btnClearHazards">Clear Hazards</button>
       <button class="btn btn-secondary" id="btnClearObstacles">Clear Obstacles</button>
+      <button class="btn btn-secondary" id="btnDeleteSelected">Delete Selected</button>
       <button class="btn btn-secondary" id="btnTestHole">▶ Test This Hole</button>
       <button class="btn btn-primary" id="btnPlayCourse">▶ Play Full Custom Course</button>
       <button class="btn btn-secondary" id="btnStopTest">■ Stop Testing</button>
@@ -764,11 +783,20 @@ let gs = {               // game state object
   editor: {
     courseIdx: 0,
     holeIdx: 0,
-    tool: 'vertex',
+    tool: 'select',
     hazardType: 'sand',
+    hazardShape: 'circle',
+    hazardRadius: 48,
+    hazardW: 120,
+    hazardH: 60,
     dragVertexIdx: -1,
     wallStart: null,
     pointer: {x: 0, y: 0},
+    selectedHazardIdx: -1,
+    selectedObstacleIdx: -1,
+    dragKind: '',
+    dragDX: 0,
+    dragDY: 0,
     testing: false,
   },
 };
@@ -940,6 +968,10 @@ function refreshEditorControls() {
   const inpPar = document.getElementById('inpEditorPar');
   const inpCourseName = document.getElementById('inpEditorCourseName');
   const selHaz = document.getElementById('selEditorHazard');
+  const selHazShape = document.getElementById('selHazardShape');
+  const inpHazR = document.getElementById('inpHazardRadius');
+  const inpHazW = document.getElementById('inpHazardW');
+  const inpHazH = document.getElementById('inpHazardH');
   const summary = document.getElementById('editorSummary');
 
   selCourse.innerHTML = '';
@@ -990,9 +1022,28 @@ function refreshEditorControls() {
   document.getElementById('selEditorTool').value = gs.editor.tool;
   selHaz.value = gs.editor.hazardType;
 
+  if (gs.editor.selectedHazardIdx >= hole.hazards.length) gs.editor.selectedHazardIdx = -1;
+  if (gs.editor.selectedObstacleIdx >= hole.obstacles.length) gs.editor.selectedObstacleIdx = -1;
+
+  const selectedHaz = hole.hazards[gs.editor.selectedHazardIdx] || null;
+  if (selectedHaz) {
+    gs.editor.hazardShape = selectedHaz.shape;
+    if (selectedHaz.shape === 'circle') {
+      gs.editor.hazardRadius = Math.round(selectedHaz.r || gs.editor.hazardRadius);
+    } else {
+      gs.editor.hazardW = Math.round(selectedHaz.w || gs.editor.hazardW);
+      gs.editor.hazardH = Math.round(selectedHaz.h || gs.editor.hazardH);
+    }
+  }
+
+  selHazShape.value = gs.editor.hazardShape;
+  inpHazR.value = String(gs.editor.hazardRadius);
+  inpHazW.value = String(gs.editor.hazardW);
+  inpHazH.value = String(gs.editor.hazardH);
+
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
-    `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · Theme ${hole.theme}. ` +
+    `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · ${hole.obstacles.length} obstacles · Theme ${hole.theme}. ` +
     `Pick a tool, then click/drag directly on the course to edit.`;
 }
 
@@ -1012,6 +1063,48 @@ function getHoleAtRoundIndex(idx) {
     return gs.customRoundHoles[idx] || null;
   }
   return HOLE_POOL[gs.round[idx]] || null;
+}
+
+function getHazardCenter(hz) {
+  if (hz.shape === 'circle') return { x: hz.cx, y: hz.cy };
+  return { x: hz.x + hz.w / 2, y: hz.y + hz.h / 2 };
+}
+
+function setHazardCenter(hz, cx, cy) {
+  if (hz.shape === 'circle') {
+    hz.cx = cx;
+    hz.cy = cy;
+  } else {
+    hz.x = cx - hz.w / 2;
+    hz.y = cy - hz.h / 2;
+  }
+}
+
+function pointSegDistance(px, py, x1, y1, x2, y2) {
+  const cp = closestOnSeg(px, py, x1, y1, x2, y2);
+  return dist(px, py, cp.x, cp.y);
+}
+
+function findHazardAtPoint(hole, p) {
+  for (let i = hole.hazards.length - 1; i >= 0; i--) {
+    if (inHazard(p.x, p.y, hole.hazards[i])) return i;
+  }
+  return -1;
+}
+
+function findObstacleHandleAtPoint(hole, p) {
+  let nearest = { idx: -1, part: '' };
+  let best = 14;
+  for (let i = 0; i < hole.obstacles.length; i++) {
+    const ob = hole.obstacles[i];
+    const d1 = dist(p.x, p.y, ob.x1, ob.y1);
+    const d2 = dist(p.x, p.y, ob.x2, ob.y2);
+    const dl = pointSegDistance(p.x, p.y, ob.x1, ob.y1, ob.x2, ob.y2);
+    if (d1 < best) { best = d1; nearest = { idx: i, part: 'a' }; }
+    if (d2 < best) { best = d2; nearest = { idx: i, part: 'b' }; }
+    if (dl < best) { best = dl; nearest = { idx: i, part: 'line' }; }
+  }
+  return nearest;
 }
 
 function resetActiveHoleGeometryRounded() {
@@ -1589,9 +1682,9 @@ function drawEditorOverlay(hole) {
   ctx.font = '12px system-ui';
   ctx.textAlign = 'left';
   ctx.fillText(`Editor Tool: ${gs.editor.tool}`, 16, CH - 44);
-  const tip = gs.editor.tool === 'wall'
-    ? 'Click start point, then click end point to place wall'
-    : 'Drag vertices or click to place tee/cup/hazard';
+  let tip = 'Drag vertices or click to place tee/cup/hazard';
+  if (gs.editor.tool === 'wall') tip = 'Click start point, then click end point to place wall';
+  if (gs.editor.tool === 'select') tip = 'Click hazard/wall to select, drag handles to edit, use Delete Selected';
   ctx.fillText(tip, 16, CH - 24);
 
   if (gs.editor.tool === 'wall' && gs.editor.wallStart) {
@@ -1601,6 +1694,42 @@ function drawEditorOverlay(hole) {
     ctx.moveTo(gs.editor.wallStart.x, gs.editor.wallStart.y);
     ctx.lineTo(gs.editor.pointer.x, gs.editor.pointer.y);
     ctx.stroke();
+  }
+
+  const sh = hole.hazards[gs.editor.selectedHazardIdx];
+  if (sh) {
+    ctx.strokeStyle = 'rgba(255,240,120,0.95)';
+    ctx.lineWidth = 2;
+    if (sh.shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(sh.cx, sh.cy, sh.r + 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sh.cx, sh.cy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,240,120,0.95)';
+      ctx.fill();
+    } else {
+      ctx.strokeRect(sh.x - 3, sh.y - 3, sh.w + 6, sh.h + 6);
+      const cx = sh.x + sh.w / 2;
+      const cy = sh.y + sh.h / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,240,120,0.95)';
+      ctx.fill();
+    }
+  }
+
+  const so = hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (so) {
+    ctx.strokeStyle = 'rgba(255,170,110,0.95)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(so.x1, so.y1);
+    ctx.lineTo(so.x2, so.y2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,170,110,0.95)';
+    ctx.beginPath(); ctx.arc(so.x1, so.y1, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(so.x2, so.y2, 5, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
@@ -1792,7 +1921,32 @@ function onPointerDown(e) {
     if (!hole) return;
     const c = clampPointToCanvas(p);
     gs.editor.pointer = c;
-    if (gs.editor.tool === 'vertex') {
+    if (gs.editor.tool === 'select') {
+      gs.editor.dragKind = '';
+      const hzIdx = findHazardAtPoint(hole, c);
+      if (hzIdx >= 0) {
+        gs.editor.selectedHazardIdx = hzIdx;
+        gs.editor.selectedObstacleIdx = -1;
+        const hz = hole.hazards[hzIdx];
+        const hc = getHazardCenter(hz);
+        gs.editor.dragKind = 'hazard';
+        gs.editor.dragDX = c.x - hc.x;
+        gs.editor.dragDY = c.y - hc.y;
+        refreshEditorControls();
+      } else {
+        const obPick = findObstacleHandleAtPoint(hole, c);
+        if (obPick.idx >= 0) {
+          gs.editor.selectedObstacleIdx = obPick.idx;
+          gs.editor.selectedHazardIdx = -1;
+          gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : '';
+          refreshEditorControls();
+        } else {
+          gs.editor.selectedHazardIdx = -1;
+          gs.editor.selectedObstacleIdx = -1;
+          refreshEditorControls();
+        }
+      }
+    } else if (gs.editor.tool === 'vertex') {
       gs.editor.dragVertexIdx = nearestVertexIndex(hole.polygon, c);
     } else if (gs.editor.tool === 'tee') {
       hole.ball = c;
@@ -1805,7 +1959,20 @@ function onPointerDown(e) {
       saveEditorData();
       refreshEditorControls();
     } else if (gs.editor.tool === 'hazard') {
-      hole.hazards.push({ type: gs.editor.hazardType, shape: 'circle', cx: c.x, cy: c.y, r: 48 });
+      if (gs.editor.hazardShape === 'rect') {
+        const w = clamp(gs.editor.hazardW, 8, 400);
+        const h = clamp(gs.editor.hazardH, 8, 400);
+        hole.hazards.push({
+          type: gs.editor.hazardType,
+          shape: 'rect',
+          x: c.x - w / 2,
+          y: c.y - h / 2,
+          w,
+          h,
+        });
+      } else {
+        hole.hazards.push({ type: gs.editor.hazardType, shape: 'circle', cx: c.x, cy: c.y, r: clamp(gs.editor.hazardRadius, 8, 220) });
+      }
       saveEditorData();
       refreshEditorControls();
     } else if (gs.editor.tool === 'wall') {
@@ -1849,6 +2016,34 @@ function onPointerMove(e) {
     gs.editor.pointer = clampPointToCanvas(getEventPos(e));
   }
 
+  if (gs.state === State.EDITOR && gs.editor.tool === 'select' && gs.editor.dragKind) {
+    const hole = getActiveEditorHole();
+    if (!hole) return;
+    const p = clampPointToCanvas(getEventPos(e));
+
+    if (gs.editor.dragKind === 'hazard' && gs.editor.selectedHazardIdx >= 0) {
+      const hz = hole.hazards[gs.editor.selectedHazardIdx];
+      if (hz) setHazardCenter(hz, p.x - gs.editor.dragDX, p.y - gs.editor.dragDY);
+      saveEditorData();
+      e.preventDefault();
+      return;
+    }
+
+    const ob = hole.obstacles[gs.editor.selectedObstacleIdx];
+    if (ob && gs.editor.dragKind === 'ob_a') {
+      ob.x1 = p.x; ob.y1 = p.y;
+      saveEditorData();
+      e.preventDefault();
+      return;
+    }
+    if (ob && gs.editor.dragKind === 'ob_b') {
+      ob.x2 = p.x; ob.y2 = p.y;
+      saveEditorData();
+      e.preventDefault();
+      return;
+    }
+  }
+
   if (gs.state === State.EDITOR && gs.editor.dragVertexIdx >= 0) {
     const hole = getActiveEditorHole();
     if (!hole) return;
@@ -1867,6 +2062,7 @@ function onPointerMove(e) {
 function onPointerUp(e) {
   if (gs.state === State.EDITOR) {
     gs.editor.dragVertexIdx = -1;
+    gs.editor.dragKind = '';
     e.preventDefault();
     return;
   }
@@ -2223,12 +2419,18 @@ document.getElementById('btnEditor').addEventListener('click', () => {
 document.getElementById('selEditorCourse').addEventListener('change', (e) => {
   gs.editor.courseIdx = Number(e.target.value) || 0;
   gs.editor.holeIdx = 0;
+  gs.editor.selectedHazardIdx = -1;
+  gs.editor.selectedObstacleIdx = -1;
+  gs.editor.wallStart = null;
   updateEditorPreviewHole();
   refreshEditorControls();
 });
 
 document.getElementById('selEditorHole').addEventListener('change', (e) => {
   gs.editor.holeIdx = Number(e.target.value) || 0;
+  gs.editor.selectedHazardIdx = -1;
+  gs.editor.selectedObstacleIdx = -1;
+  gs.editor.wallStart = null;
   updateEditorPreviewHole();
   refreshEditorControls();
 });
@@ -2261,10 +2463,83 @@ document.getElementById('selEditorTool').addEventListener('change', (e) => {
   gs.editor.tool = e.target.value;
   gs.editor.dragVertexIdx = -1;
   gs.editor.wallStart = null;
+  gs.editor.dragKind = '';
 });
 
 document.getElementById('selEditorHazard').addEventListener('change', (e) => {
   gs.editor.hazardType = e.target.value;
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz) {
+    hz.type = gs.editor.hazardType;
+    saveEditorData();
+  }
+});
+
+document.getElementById('selHazardShape').addEventListener('change', (e) => {
+  gs.editor.hazardShape = e.target.value;
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (!hz) return;
+  const c = getHazardCenter(hz);
+  if (gs.editor.hazardShape === 'rect') {
+    hz.shape = 'rect';
+    hz.w = clamp(gs.editor.hazardW, 8, 400);
+    hz.h = clamp(gs.editor.hazardH, 8, 400);
+    hz.x = c.x - hz.w / 2;
+    hz.y = c.y - hz.h / 2;
+    delete hz.cx;
+    delete hz.cy;
+    delete hz.r;
+  } else {
+    hz.shape = 'circle';
+    hz.r = clamp(gs.editor.hazardRadius, 8, 220);
+    hz.cx = c.x;
+    hz.cy = c.y;
+    delete hz.x;
+    delete hz.y;
+    delete hz.w;
+    delete hz.h;
+  }
+  saveEditorData();
+  refreshEditorControls();
+});
+
+document.getElementById('inpHazardRadius').addEventListener('change', (e) => {
+  gs.editor.hazardRadius = clamp(Number(e.target.value) || 48, 8, 220);
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz && hz.shape === 'circle') {
+    hz.r = gs.editor.hazardRadius;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpHazardW').addEventListener('change', (e) => {
+  gs.editor.hazardW = clamp(Number(e.target.value) || 120, 8, 400);
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz && hz.shape === 'rect') {
+    const c = getHazardCenter(hz);
+    hz.w = gs.editor.hazardW;
+    hz.x = c.x - hz.w / 2;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpHazardH').addEventListener('change', (e) => {
+  gs.editor.hazardH = clamp(Number(e.target.value) || 60, 8, 400);
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz && hz.shape === 'rect') {
+    const c = getHazardCenter(hz);
+    hz.h = gs.editor.hazardH;
+    hz.y = c.y - hz.h / 2;
+    saveEditorData();
+  }
+  refreshEditorControls();
 });
 
 document.getElementById('btnProfile').addEventListener('click', () => {
@@ -2341,6 +2616,7 @@ document.getElementById('btnClearHazards').addEventListener('click', () => {
   const hole = getActiveEditorHole();
   if (!hole) return;
   hole.hazards = [];
+  gs.editor.selectedHazardIdx = -1;
   saveEditorData();
   refreshEditorControls();
 });
@@ -2349,9 +2625,28 @@ document.getElementById('btnClearObstacles').addEventListener('click', () => {
   const hole = getActiveEditorHole();
   if (!hole) return;
   hole.obstacles = [];
+  gs.editor.selectedObstacleIdx = -1;
   gs.editor.wallStart = null;
   saveEditorData();
   refreshEditorControls();
+});
+
+document.getElementById('btnDeleteSelected').addEventListener('click', () => {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  if (gs.editor.selectedHazardIdx >= 0) {
+    hole.hazards.splice(gs.editor.selectedHazardIdx, 1);
+    gs.editor.selectedHazardIdx = -1;
+    saveEditorData();
+    refreshEditorControls();
+    return;
+  }
+  if (gs.editor.selectedObstacleIdx >= 0) {
+    hole.obstacles.splice(gs.editor.selectedObstacleIdx, 1);
+    gs.editor.selectedObstacleIdx = -1;
+    saveEditorData();
+    refreshEditorControls();
+  }
 });
 
 document.getElementById('btnTestHole').addEventListener('click', () => {
