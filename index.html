@@ -387,6 +387,9 @@
           <input id="inpHazardTimer" type="number" min="0.2" max="8" step="0.1" style="width:100%;margin-top:4px">
         </label>
       </div>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">
+        <input id="chkHazardHidden" type="checkbox" style="margin-right:6px">Invisible In Play (editor preview only)
+      </label>
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Element Theme
         <select id="selObstacleTheme" style="width:100%;margin-top:4px"></select>
       </label>
@@ -883,6 +886,7 @@ let gs = {               // game state object
     hazardAngle: 0,
     hazardForce: 1,
     hazardTimer: 1.5,
+    hazardHidden: false,
     obstacleType: 'wall',
     obstacleSize: 120,
     obstacleAngle: 0,
@@ -1125,6 +1129,7 @@ function refreshEditorControls() {
   const inpHazAngle = document.getElementById('inpHazardAngle');
   const inpHazForce = document.getElementById('inpHazardForce');
   const inpHazTimer = document.getElementById('inpHazardTimer');
+  const chkHazHidden = document.getElementById('chkHazardHidden');
   const selObs = document.getElementById('selEditorObstacle');
   const selObsTheme = document.getElementById('selObstacleTheme');
   const inpObsSize = document.getElementById('inpObstacleSize');
@@ -1225,12 +1230,15 @@ function refreshEditorControls() {
     gs.editor.hazardAngle = Number(selectedHaz.angleDeg) || 0;
     gs.editor.hazardForce = clamp(Number(selectedHaz.force) || 1, 0, 3);
     gs.editor.hazardTimer = clamp(Number(selectedHaz.timerSec) || 1.5, 0.2, 8);
+    gs.editor.hazardHidden = !!selectedHaz.hiddenInPlay;
     if (selectedHaz.shape === 'circle') {
       gs.editor.hazardRadius = Math.round(selectedHaz.r || gs.editor.hazardRadius);
     } else {
       gs.editor.hazardW = Math.round(selectedHaz.w || gs.editor.hazardW);
       gs.editor.hazardH = Math.round(selectedHaz.h || gs.editor.hazardH);
     }
+  } else {
+    gs.editor.hazardHidden = gs.editor.hazardType === 'gravity_zone';
   }
 
   selHazShape.value = gs.editor.hazardShape;
@@ -1240,6 +1248,7 @@ function refreshEditorControls() {
   inpHazAngle.value = String(gs.editor.hazardAngle);
   inpHazForce.value = String(gs.editor.hazardForce);
   inpHazTimer.value = String(gs.editor.hazardTimer);
+  chkHazHidden.checked = !!gs.editor.hazardHidden;
   if (!availableObstacles.some(o => o.id === gs.editor.obstacleType)) {
     gs.editor.obstacleType = availableObstacles.length ? availableObstacles[0].id : 'wall';
   }
@@ -1775,6 +1784,7 @@ function strokePoly(poly, color, lineWidth) {
 
 /** Draw a hazard zone */
 function drawHazard(hz) {
+  if (hz.hiddenInPlay && gs.state !== State.EDITOR) return;
   const styleMap = {
     sand: ['rgba(212,170,82,0.82)', 'rgba(220,180,90,0.95)'],
     water: ['rgba(26,90,154,0.88)', 'rgba(38,113,194,0.95)'],
@@ -1806,8 +1816,13 @@ function drawHazard(hz) {
     ice: ['rgba(194,235,255,0.58)', 'rgba(231,248,255,0.9)'],
   };
   const [color, stroke] = styleMap[hz.type] || ['rgba(212,170,82,0.82)', 'rgba(220,180,90,0.95)'];
+  const ghost = !!hz.hiddenInPlay;
 
   ctx.save();
+  if (ghost) {
+    ctx.globalAlpha = 0.38;
+    ctx.setLineDash([5, 5]);
+  }
   if (hz.shape === 'circle') {
     ctx.beginPath();
     ctx.arc(hz.cx, hz.cy, hz.r, 0, Math.PI * 2);
@@ -1876,7 +1891,7 @@ function drawHazard(hz) {
     }
   }
 
-  if (hazardMatches(hz, ['conveyor', 'water_slide', 'vine', 'minecart', 'beanstalk'])) {
+  if (gs.state === State.EDITOR && hazardMatches(hz, ['conveyor', 'water_slide', 'vine', 'minecart', 'beanstalk'])) {
     const c = hz.shape === 'circle' ? { x: hz.cx, y: hz.cy } : { x: hz.x + hz.w / 2, y: hz.y + hz.h / 2 };
     const a = getHazardAngle(hz);
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -2563,6 +2578,7 @@ function onPointerDown(e) {
         angleDeg: Number(gs.editor.hazardAngle) || 0,
         force: clamp(Number(gs.editor.hazardForce) || 1, 0, 3),
         timerSec: clamp(Number(gs.editor.hazardTimer) || 1.5, 0.2, 8),
+        hiddenInPlay: !!gs.editor.hazardHidden,
         phase: Math.random() * Math.PI * 2,
       };
       if (gs.editor.hazardShape === 'rect') {
@@ -3138,12 +3154,15 @@ document.getElementById('selObstacleTheme').addEventListener('change', (e) => {
 
 document.getElementById('selEditorHazard').addEventListener('change', (e) => {
   gs.editor.hazardType = e.target.value;
+  if (gs.editor.hazardType === 'gravity_zone') gs.editor.hazardHidden = true;
   const hole = getActiveEditorHole();
   const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
   if (hz) {
     hz.type = gs.editor.hazardType;
+    hz.hiddenInPlay = !!gs.editor.hazardHidden;
     saveEditorData();
   }
+  refreshEditorControls();
 });
 
 document.getElementById('selHazardShape').addEventListener('change', (e) => {
@@ -3265,6 +3284,17 @@ document.getElementById('inpHazardTimer').addEventListener('change', (e) => {
   const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
   if (hz) {
     hz.timerSec = gs.editor.hazardTimer;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('chkHazardHidden').addEventListener('change', (e) => {
+  gs.editor.hazardHidden = !!e.target.checked;
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz) {
+    hz.hiddenInPlay = gs.editor.hazardHidden;
     saveEditorData();
   }
   refreshEditorControls();
