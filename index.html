@@ -345,6 +345,18 @@
           <option value="obstacle">Place Obstacles</option>
         </select>
       </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+        <label style="font-size:0.78rem;color:var(--text-dim)">Curve Smoothness
+          <input id="inpCurveSmoothness" type="number" min="1" max="5" step="1" style="width:100%;margin-top:4px">
+        </label>
+        <label style="font-size:0.78rem;color:var(--text-dim)">Curve Samples
+          <input id="inpCurveSamples" type="number" min="4" max="18" step="1" style="width:100%;margin-top:4px">
+        </label>
+      </div>
+      <button class="btn btn-secondary" id="btnSmoothCurves">~ Smooth Hole Curves</button>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Element Theme
+        <select id="selHazardTheme" style="width:100%;margin-top:4px"></select>
+      </label>
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
         <select id="selEditorHazard" style="width:100%;margin-top:4px"></select>
       </label>
@@ -365,6 +377,9 @@
           <input id="inpHazardH" type="number" min="8" max="400" step="1" style="width:100%;margin-top:4px">
         </label>
       </div>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Element Theme
+        <select id="selObstacleTheme" style="width:100%;margin-top:4px"></select>
+      </label>
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Type (for Place Obstacles tool)
         <select id="selEditorObstacle" style="width:100%;margin-top:4px"></select>
       </label>
@@ -441,37 +456,79 @@ const LEVELS = [
 ];
 
 const THEME_CATALOG = [
-  'desert', 'candy', 'jungle', 'lava', 'farm', 'haunted', 'space', 'medieval', 'cyber', 'carnival',
+  'desert', 'candy', 'jungle', 'lava', 'volcano', 'farm', 'haunted', 'space', 'medieval', 'cyber', 'carnival',
   'mountain', 'beach', 'underwater', 'urban', 'western', 'asian', 'factory', 'sky', 'mythology', 'cavern',
-  'fairy tale', 'war',
+  'fairy tale', 'war', 'snow',
 ];
 
 const HAZARD_CATALOG = [
-  { id: 'sand',            label: 'Sand Trap',      status: 'implemented' },
-  { id: 'water',           label: 'Water Trap',     status: 'implemented' },
-  { id: 'slick',           label: 'Slick Zone',     status: 'implemented' },
-  { id: 'lava',            label: 'Lava Trap',      status: 'planned' },
-  { id: 'sticky',          label: 'Sticky Trap',    status: 'planned' },
-  { id: 'ramp',            label: 'Ramp',           status: 'planned' },
-  { id: 'windmill',        label: 'Windmill',       status: 'planned' },
-  { id: 'timed_gate',      label: 'Timed Gate',     status: 'planned' },
-  { id: 'pressure_plate',  label: 'Pressure Plate', status: 'planned' },
-  { id: 'wind_turbine',    label: 'Wind Turbine',   status: 'planned' },
-  { id: 'mudpit',          label: 'Mudpit',         status: 'planned' },
-  { id: 'cannon',          label: 'Cannon',         status: 'planned' },
-  { id: 'trebuchet',       label: 'Trebuchet',      status: 'planned' },
-  { id: 'bubbles',         label: 'Bubbles',        status: 'planned' },
-  { id: 'cars',            label: 'Cars',           status: 'planned' },
-  { id: 'barrier',         label: 'Barrier',        status: 'planned' },
-  { id: 'bomb',            label: 'Bomb',           status: 'planned' },
+  { id: 'water',       label: 'Water Hazard',      elementTheme: 'generic', status: 'implemented' },
+  { id: 'sand',        label: 'Sand Trap',         elementTheme: 'generic', status: 'implemented' },
+  { id: 'slick',       label: 'Slick Zone',        elementTheme: 'generic', status: 'implemented' },
+  { id: 'quicksand',   label: 'Quicksand',         elementTheme: 'desert', status: 'implemented' },
+  { id: 'honey',       label: 'Honey',             elementTheme: 'candy', status: 'implemented' },
+  { id: 'flytrap',     label: 'Fly Trap',          elementTheme: 'jungle', status: 'implemented' },
+  { id: 'vine',        label: 'Vine',              elementTheme: 'jungle', status: 'implemented' },
+  { id: 'lava',        label: 'Lava',              elementTheme: 'volcano', status: 'implemented' },
+  { id: 'mudpit',      label: 'Mudpit',            elementTheme: 'farm', status: 'implemented' },
+  { id: 'cornfield',   label: 'Cornfield',         elementTheme: 'farm', status: 'implemented' },
+  { id: 'cobweb',      label: 'Cobweb',            elementTheme: 'haunted', status: 'implemented' },
+  { id: 'glass',       label: 'Glass',             elementTheme: 'haunted', status: 'implemented' },
+  { id: 'gravity_zone',label: 'Gravity Zone',      elementTheme: 'space', status: 'implemented' },
+  { id: 'conveyor',    label: 'Conveyor',          elementTheme: 'cyber', status: 'implemented' },
+  { id: 'abyss',       label: 'Abyss',             elementTheme: 'mountain', status: 'implemented' },
+  { id: 'deep_water',  label: 'Deep Water',        elementTheme: 'beach', status: 'implemented' },
+  { id: 'wave_water',  label: 'Wave Water',        elementTheme: 'beach', status: 'implemented' },
+  { id: 'water_slide', label: 'Water Slide',       elementTheme: 'beach', status: 'implemented' },
+  { id: 'bubbles',     label: 'Bubbles',           elementTheme: 'underwater', status: 'implemented' },
+  { id: 'ink',         label: 'Ink',               elementTheme: 'underwater', status: 'implemented' },
+  { id: 'asphalt',     label: 'Asphalt',           elementTheme: 'urban', status: 'implemented' },
+  { id: 'alcohol',     label: 'Alcohol',           elementTheme: 'western', status: 'implemented' },
+  { id: 'koi_pond',    label: 'Koi Pond',          elementTheme: 'asian', status: 'implemented' },
+  { id: 'fan_zone',    label: 'Fan Air Zone',      elementTheme: 'factory', status: 'implemented' },
+  { id: 'cloud',       label: 'Cloud',             elementTheme: 'sky', status: 'implemented' },
+  { id: 'minecart',    label: 'Minecart Rail',     elementTheme: 'cavern', status: 'implemented' },
+  { id: 'beanstalk',   label: 'Beanstalk',         elementTheme: 'fairy tale', status: 'implemented' },
+  { id: 'ice',         label: 'Ice',               elementTheme: 'snow', status: 'implemented' },
 ];
 
 const OBSTACLE_CATALOG = [
-  { id: 'wall',   label: 'Wall Segment (2-click)' },
-  { id: 'bar',    label: 'Barrier Bar' },
-  { id: 'gate',   label: 'Gate (double bar)' },
-  { id: 'cross',  label: 'Cross Blocker' },
-  { id: 'zigzag', label: 'Zig-Zag Pair' },
+  { id: 'wall',          label: 'Wall Segment (2-click)', elementTheme: 'generic', status: 'implemented' },
+  { id: 'bar',           label: 'Barrier Bar',            elementTheme: 'generic', status: 'implemented' },
+  { id: 'gate',          label: 'Gate (double bar)',      elementTheme: 'generic', status: 'implemented' },
+  { id: 'cross',         label: 'Cross Blocker',          elementTheme: 'generic', status: 'implemented' },
+  { id: 'zigzag',        label: 'Zig-Zag Pair',           elementTheme: 'generic', status: 'implemented' },
+  { id: 'tree',          label: 'Tree',                   elementTheme: 'generic', status: 'implemented' },
+  { id: 'bush',          label: 'Bush',                   elementTheme: 'generic', status: 'implemented' },
+  { id: 'ramp',          label: 'Ramp',                   elementTheme: 'generic', status: 'implemented' },
+  { id: 'pyramid',       label: 'Pyramid',                elementTheme: 'desert', status: 'implemented' },
+  { id: 'ruins',         label: 'Ruins',                  elementTheme: 'desert', status: 'planned' },
+  { id: 'jelly_bumper',  label: 'Jelly Bumper',           elementTheme: 'candy', status: 'implemented' },
+  { id: 'dinosaur',      label: 'Dinosaur',               elementTheme: 'jungle', status: 'planned' },
+  { id: 'volcano_spout', label: 'Volcano Spout',          elementTheme: 'volcano', status: 'planned' },
+  { id: 'windmill',      label: 'Windmill',               elementTheme: 'farm', status: 'implemented' },
+  { id: 'tombstone',     label: 'Tombstone',              elementTheme: 'haunted', status: 'implemented' },
+  { id: 'planet',        label: 'Planet',                 elementTheme: 'space', status: 'planned' },
+  { id: 'target',        label: 'Target',                 elementTheme: 'medieval', status: 'implemented' },
+  { id: 'timed_gate',    label: 'Timed Gate',             elementTheme: 'cyber', status: 'planned' },
+  { id: 'trampoline',    label: 'Trampoline',             elementTheme: 'carnival', status: 'implemented' },
+  { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'planned' },
+  { id: 'beach_ball',    label: 'Beach Ball',             elementTheme: 'beach', status: 'implemented' },
+  { id: 'coral',         label: 'Coral',                  elementTheme: 'underwater', status: 'implemented' },
+  { id: 'car',           label: 'Car',                    elementTheme: 'urban', status: 'planned' },
+  { id: 'cactus',        label: 'Cactus',                 elementTheme: 'western', status: 'implemented' },
+  { id: 'cherry_tree',   label: 'Cherry Blossom',         elementTheme: 'asian', status: 'implemented' },
+  { id: 'cogs',          label: 'Cogs',                   elementTheme: 'factory', status: 'implemented' },
+  { id: 'hot_air',       label: 'Hot Air Balloon',        elementTheme: 'sky', status: 'planned' },
+  { id: 'dragon',        label: 'Dragon',                 elementTheme: 'mythology', status: 'planned' },
+  { id: 'stalagmite',    label: 'Stalagmite',             elementTheme: 'cavern', status: 'implemented' },
+  { id: 'golden_egg',    label: 'Golden Egg',             elementTheme: 'fairy tale', status: 'planned' },
+  { id: 'land_mine',     label: 'Land Mine',              elementTheme: 'war', status: 'planned' },
+  { id: 'snowman',       label: 'Snowman',                elementTheme: 'snow', status: 'implemented' },
+];
+
+const ELEMENT_THEME_CATALOG = [
+  'generic', ...THEME_CATALOG,
 ];
 
 const CLUBS = [
@@ -504,6 +561,7 @@ const THEME_STYLES = {
   candy:      { feltA: '#f7a3c6', feltB: '#f57fb2', edgeA: '#6f2d50', edgeB: '#ffd1e3' },
   jungle:     { feltA: '#2f6b38', feltB: '#1f4f2b', edgeA: '#0e2414', edgeB: '#6fbf7d' },
   lava:       { feltA: '#8f2d16', feltB: '#5d1409', edgeA: '#2a0804', edgeB: '#ff824d' },
+  volcano:    { feltA: '#842915', feltB: '#4f1108', edgeA: '#230804', edgeB: '#ff7e40' },
   farm:       { feltA: '#5d8c3d', feltB: '#43682c', edgeA: '#213315', edgeB: '#9cd06a' },
   haunted:    { feltA: '#3d3b52', feltB: '#252336', edgeA: '#12111d', edgeB: '#6f6d95' },
   space:      { feltA: '#25385f', feltB: '#151f3f', edgeA: '#080d21', edgeB: '#6d8bd7' },
@@ -522,6 +580,7 @@ const THEME_STYLES = {
   cavern:     { feltA: '#4f473d', feltB: '#393328', edgeA: '#17130d', edgeB: '#837660' },
   'fairy tale': { feltA: '#7c5ca3', feltB: '#5a3f7d', edgeA: '#231634', edgeB: '#d0b4f2' },
   war:        { feltA: '#4e5a43', feltB: '#394131', edgeA: '#171d13', edgeB: '#818f70' },
+  snow:       { feltA: '#b2d6ea', feltB: '#8fb7d0', edgeA: '#2a4960', edgeB: '#ecf8ff' },
 };
 
 function getThemeStyle(themeName) {
@@ -796,11 +855,16 @@ let gs = {               // game state object
 
   // Flags
   ballInWater: false,
+  flyTrapFrames: 0,
+  ballTint: null,
+  visualEffect: { ink: 0, dizzy: 0, corn: 0 },
   customCourses: [],
   editor: {
     courseIdx: 0,
     holeIdx: 0,
     tool: 'select',
+    hazardTheme: 'generic',
+    obstacleTheme: 'generic',
     hazardType: 'sand',
     hazardShape: 'circle',
     hazardRadius: 48,
@@ -809,6 +873,8 @@ let gs = {               // game state object
     obstacleType: 'wall',
     obstacleSize: 120,
     obstacleAngle: 0,
+    curveSmoothness: 3,
+    curveSamples: 9,
     dragVertexIdx: -1,
     wallStart: null,
     pointer: {x: 0, y: 0},
@@ -982,18 +1048,68 @@ function saveEditorData() {
   saveCustomCourses(gs.customCourses);
 }
 
+function formatThemeLabel(theme) {
+  return String(theme)
+    .split(' ')
+    .map(part => part ? part[0].toUpperCase() + part.slice(1) : '')
+    .join(' ');
+}
+
+function filteredElements(catalog, elementTheme) {
+  return catalog.filter(item => {
+    const t = item.elementTheme || 'generic';
+    return t === 'generic' || t === elementTheme;
+  });
+}
+
+function smoothPolygonCurves(poly, smoothness = 3, samplesPerSeg = 9) {
+  if (!Array.isArray(poly) || poly.length < 3) return poly;
+  const t = clamp(Number(smoothness) || 3, 1, 5) * 0.18;
+  const samples = clamp(Math.round(Number(samplesPerSeg) || 9), 4, 18);
+  const out = [];
+  const n = poly.length;
+  for (let i = 0; i < n; i++) {
+    const p0 = poly[(i - 1 + n) % n];
+    const p1 = poly[i];
+    const p2 = poly[(i + 1) % n];
+    const p3 = poly[(i + 2) % n];
+    for (let s = 0; s < samples; s++) {
+      const u = s / samples;
+      const u2 = u * u;
+      const u3 = u2 * u;
+      const m1x = (p2.x - p0.x) * t;
+      const m1y = (p2.y - p0.y) * t;
+      const m2x = (p3.x - p1.x) * t;
+      const m2y = (p3.y - p1.y) * t;
+      const h00 = 2 * u3 - 3 * u2 + 1;
+      const h10 = u3 - 2 * u2 + u;
+      const h01 = -2 * u3 + 3 * u2;
+      const h11 = u3 - u2;
+      out.push(clampPointToCanvas({
+        x: h00 * p1.x + h10 * m1x + h01 * p2.x + h11 * m2x,
+        y: h00 * p1.y + h10 * m1y + h01 * p2.y + h11 * m2y,
+      }));
+    }
+  }
+  return out;
+}
+
 function refreshEditorControls() {
   const selCourse = document.getElementById('selEditorCourse');
   const selHole = document.getElementById('selEditorHole');
   const selTheme = document.getElementById('selEditorTheme');
   const inpPar = document.getElementById('inpEditorPar');
   const inpCourseName = document.getElementById('inpEditorCourseName');
+  const inpCurveSmooth = document.getElementById('inpCurveSmoothness');
+  const inpCurveSamples = document.getElementById('inpCurveSamples');
+  const selHazTheme = document.getElementById('selHazardTheme');
   const selHaz = document.getElementById('selEditorHazard');
   const selHazShape = document.getElementById('selHazardShape');
   const inpHazR = document.getElementById('inpHazardRadius');
   const inpHazW = document.getElementById('inpHazardW');
   const inpHazH = document.getElementById('inpHazardH');
   const selObs = document.getElementById('selEditorObstacle');
+  const selObsTheme = document.getElementById('selObstacleTheme');
   const inpObsSize = document.getElementById('inpObstacleSize');
   const inpObsAngle = document.getElementById('inpObstacleAngle');
   const summary = document.getElementById('editorSummary');
@@ -1014,19 +1130,41 @@ function refreshEditorControls() {
     selTheme.appendChild(opt);
   });
 
+  selHazTheme.innerHTML = '';
+  ELEMENT_THEME_CATALOG.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = formatThemeLabel(name);
+    selHazTheme.appendChild(opt);
+  });
+
+  selObsTheme.innerHTML = '';
+  ELEMENT_THEME_CATALOG.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = formatThemeLabel(name);
+    selObsTheme.appendChild(opt);
+  });
+
   selHaz.innerHTML = '';
-  HAZARD_CATALOG.filter(h => h.status === 'implemented').forEach(h => {
+  const availableHazards = filteredElements(HAZARD_CATALOG, gs.editor.hazardTheme)
+    .filter(h => h.status === 'implemented');
+  availableHazards.forEach(h => {
     const opt = document.createElement('option');
     opt.value = h.id;
-    opt.textContent = h.label;
+    const suffix = h.elementTheme && h.elementTheme !== 'generic' ? ` (${formatThemeLabel(h.elementTheme)})` : '';
+    opt.textContent = h.label + suffix;
     selHaz.appendChild(opt);
   });
 
   selObs.innerHTML = '';
-  OBSTACLE_CATALOG.forEach(o => {
+  const availableObstacles = filteredElements(OBSTACLE_CATALOG, gs.editor.obstacleTheme)
+    .filter(o => o.status !== 'planned');
+  availableObstacles.forEach(o => {
     const opt = document.createElement('option');
     opt.value = o.id;
-    opt.textContent = o.label;
+    const suffix = o.elementTheme && o.elementTheme !== 'generic' ? ` (${formatThemeLabel(o.elementTheme)})` : '';
+    opt.textContent = o.label + suffix;
     selObs.appendChild(opt);
   });
 
@@ -1050,8 +1188,15 @@ function refreshEditorControls() {
   selHole.value = String(gs.editor.holeIdx);
 
   selTheme.value = THEME_CATALOG.includes(hole.theme) ? hole.theme : THEME_CATALOG[0];
+  selHazTheme.value = ELEMENT_THEME_CATALOG.includes(gs.editor.hazardTheme) ? gs.editor.hazardTheme : 'generic';
+  selObsTheme.value = ELEMENT_THEME_CATALOG.includes(gs.editor.obstacleTheme) ? gs.editor.obstacleTheme : 'generic';
   inpPar.value = String(hole.par || 3);
+  inpCurveSmooth.value = String(gs.editor.curveSmoothness);
+  inpCurveSamples.value = String(gs.editor.curveSamples);
   document.getElementById('selEditorTool').value = gs.editor.tool;
+  if (!availableHazards.some(h => h.id === gs.editor.hazardType)) {
+    gs.editor.hazardType = availableHazards.length ? availableHazards[0].id : 'water';
+  }
   selHaz.value = gs.editor.hazardType;
 
   if (gs.editor.selectedHazardIdx >= hole.hazards.length) gs.editor.selectedHazardIdx = -1;
@@ -1072,6 +1217,9 @@ function refreshEditorControls() {
   inpHazR.value = String(gs.editor.hazardRadius);
   inpHazW.value = String(gs.editor.hazardW);
   inpHazH.value = String(gs.editor.hazardH);
+  if (!availableObstacles.some(o => o.id === gs.editor.obstacleType)) {
+    gs.editor.obstacleType = availableObstacles.length ? availableObstacles[0].id : 'wall';
+  }
   selObs.value = gs.editor.obstacleType;
   inpObsSize.value = String(gs.editor.obstacleSize);
   inpObsAngle.value = String(gs.editor.obstacleAngle);
@@ -1079,6 +1227,7 @@ function refreshEditorControls() {
   summary.textContent =
     `${gs.customCourses.length} course(s) · Editing ${course.name} / Hole ${gs.editor.holeIdx + 1} · ` +
     `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · ${hole.obstacles.length} obstacles · Theme ${hole.theme}. ` +
+    `Hazards: ${formatThemeLabel(gs.editor.hazardTheme)} · Obstacles: ${formatThemeLabel(gs.editor.obstacleTheme)}. ` +
     `Pick a tool, then click/drag directly on the course to edit.`;
 }
 
@@ -1165,6 +1314,8 @@ function placePresetObstacle(hole, c) {
       y1: clamp(p1.y, 18, CH - 18),
       x2: clamp(p2.x, 18, CW - 18),
       y2: clamp(p2.y, 18, CH - 18),
+      kind: gs.editor.obstacleType,
+      size: s,
     });
   };
 
@@ -1185,7 +1336,10 @@ function placePresetObstacle(hole, c) {
   if (gs.editor.obstacleType === 'zigzag') {
     pushSeg(-h, -20, 0, 20);
     pushSeg(0, 20, h, -20);
+    return;
   }
+
+  pushSeg(-h, 0, h, 0);
 }
 
 function findObstacleHandleAtPoint(hole, p) {
@@ -1302,6 +1456,51 @@ function inHazard(px, py, hz) {
   return hz.shape === 'circle' ? inCircle(px, py, hz) : inRect(px, py, hz);
 }
 
+function hazardMatches(hz, ids) {
+  return ids.includes(hz.type);
+}
+
+function getHazardsAtBall(ball, hole) {
+  const hits = [];
+  for (const hz of hole.hazards) {
+    if (inHazard(ball.x, ball.y, hz)) hits.push(hz);
+  }
+  return hits;
+}
+
+function getHazardAngle(hz) {
+  return ((hz.angleDeg || 0) * Math.PI) / 180;
+}
+
+function applyDynamicHazardEffects(ball, hole) {
+  const hits = getHazardsAtBall(ball, hole);
+  gs.visualEffect = { ink: 0, dizzy: 0, corn: 0 };
+
+  for (const hz of hits) {
+    if (hazardMatches(hz, ['conveyor', 'vine', 'water_slide', 'minecart', 'beanstalk'])) {
+      const a = getHazardAngle(hz);
+      ball.vx += Math.cos(a) * 0.05;
+      ball.vy += Math.sin(a) * 0.05;
+    }
+    if (hazardMatches(hz, ['wave_water', 'koi_pond'])) {
+      const a = performance.now() / 700 + (hz.phase || 0);
+      ball.vx += Math.cos(a) * 0.03;
+      ball.vy += Math.sin(a * 1.3) * 0.03;
+    }
+    if (hz.type === 'fan_zone') {
+      const a = getHazardAngle(hz);
+      ball.vx += Math.cos(a) * 0.08;
+      ball.vy += Math.sin(a) * 0.08;
+    }
+    if (hz.type === 'paint') {
+      gs.ballTint = hz.paintColor || '#ff8fb8';
+    }
+    if (hz.type === 'ink') gs.visualEffect.ink = 1;
+    if (hz.type === 'alcohol') gs.visualEffect.dizzy = 1;
+    if (hz.type === 'cornfield') gs.visualEffect.corn = 1;
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 //  SCORE HELPERS
 // ══════════════════════════════════════════════════════════════
@@ -1390,12 +1589,13 @@ function getWalls(hole) {
 
 /** Determine friction coefficient for current ball position */
 function getFriction(ball, hole) {
-  for (const hz of hole.hazards) {
-    if (inHazard(ball.x, ball.y, hz)) {
-      if (hz.type === 'sand')  return FRICTION.sand;
-      if (hz.type === 'slick') return FRICTION.slick;
-      if (hz.type === 'water') return FRICTION.water;
-    }
+  const hits = getHazardsAtBall(ball, hole);
+  for (const hz of hits) {
+    if (hazardMatches(hz, ['slick', 'ice'])) return 0.998;
+    if (hazardMatches(hz, ['asphalt'])) return 0.994;
+    if (hazardMatches(hz, ['gravity_zone', 'cloud'])) return 0.975;
+    if (hazardMatches(hz, ['sand', 'quicksand', 'honey', 'mudpit', 'cobweb'])) return 0.87;
+    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond', 'lava', 'abyss'])) return FRICTION.water;
   }
   return FRICTION.normal;
 }
@@ -1403,7 +1603,7 @@ function getFriction(ball, hole) {
 /** Returns hazard if ball is in a water hazard, else null */
 function getWaterHazard(ball, hole) {
   for (const hz of hole.hazards) {
-    if (hz.type === 'water' && inHazard(ball.x, ball.y, hz)) return hz;
+    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond', 'lava', 'abyss']) && inHazard(ball.x, ball.y, hz)) return hz;
   }
   return null;
 }
@@ -1420,6 +1620,8 @@ function physicsTick(ball, hole) {
   const fr = getFriction(ball, hole);
   ball.vx *= fr;
   ball.vy *= fr;
+
+  applyDynamicHazardEffects(ball, hole);
 
   // Resolve wall collisions (multiple passes for stability)
   const walls = getWalls(hole);
@@ -1442,24 +1644,86 @@ function physicsTick(ball, hole) {
 //  RENDERING
 // ══════════════════════════════════════════════════════════════
 
-/** Draw felt-like tiled background */
-function drawBackground() {
-  // Dark base
-  ctx.fillStyle = '#0b1a0f';
+function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Draw themed top-down procedural background */
+function drawBackground(themeName, holeName = '') {
+  const theme = themeName || 'jungle';
+  const base = {
+    desert: ['#6b5631', '#8a7447'],
+    candy: ['#5a2840', '#7a3656'],
+    jungle: ['#122819', '#193623'],
+    volcano: ['#2e0d08', '#472017'],
+    lava: ['#2e0d08', '#472017'],
+    farm: ['#26301c', '#314127'],
+    haunted: ['#1d1b2a', '#29263a'],
+    space: ['#0b1122', '#101b34'],
+    medieval: ['#2a3323', '#36452f'],
+    cyber: ['#0b2328', '#13353d'],
+    carnival: ['#4f1c30', '#692840'],
+    mountain: ['#1d2c31', '#283d43'],
+    beach: ['#5b4f2e', '#796b40'],
+    underwater: ['#082233', '#0f3348'],
+    urban: ['#25272c', '#303239'],
+    western: ['#4f2f1f', '#68402a'],
+    asian: ['#1f2e1f', '#2a3d28'],
+    factory: ['#23292f', '#303a43'],
+    sky: ['#315f78', '#477f9d'],
+    mythology: ['#2c2342', '#3a3055'],
+    cavern: ['#2a2520', '#383127'],
+    'fairy tale': ['#302347', '#44315f'],
+    war: ['#242b20', '#30392a'],
+    snow: ['#5f7284', '#7f96ab'],
+  }[theme] || ['#122819', '#193623'];
+
+  const bg = ctx.createLinearGradient(0, 0, CW, CH);
+  bg.addColorStop(0, base[0]);
+  bg.addColorStop(1, base[1]);
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, CW, CH);
 
-  // Subtle noise / grain effect using small dots
+  const rng = mulberry32(hashString(`${theme}|${holeName}`));
   ctx.save();
-  ctx.globalAlpha = 0.04;
-  ctx.fillStyle = '#ffffff';
-  // Draw a lightweight stipple pattern
-  for (let gy = 0; gy < CH; gy += 8) {
-    for (let gx = 0; gx < CW; gx += 8) {
-      if ((gx + gy) % 16 === 0) {
-        ctx.fillRect(gx, gy, 1, 1);
-      }
+  ctx.globalAlpha = 0.35;
+
+  const drawBlob = (x, y, r, color) => {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+
+  if (theme === 'desert') {
+    for (let i = 0; i < 45; i++) drawBlob(rng() * CW, rng() * CH, 8 + rng() * 22, 'rgba(214,183,124,0.35)');
+  } else if (theme === 'jungle') {
+    for (let i = 0; i < 90; i++) drawBlob(rng() * CW, rng() * CH, 6 + rng() * 16, 'rgba(38,91,45,0.4)');
+  } else if (theme === 'medieval') {
+    for (let i = 0; i < 14; i++) {
+      const x = rng() * CW, y = rng() * CH;
+      ctx.fillStyle = 'rgba(124,129,118,0.42)';
+      ctx.fillRect(x, y, 28 + rng() * 26, 20 + rng() * 20);
+      ctx.fillStyle = 'rgba(160,166,152,0.32)';
+      ctx.fillRect(x + 6, y - 8, 8, 8);
     }
+  } else if (theme === 'underwater') {
+    for (let i = 0; i < 80; i++) {
+      ctx.strokeStyle = 'rgba(154,220,255,0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(rng() * CW, rng() * CH, 3 + rng() * 10, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    for (let i = 0; i < 65; i++) drawBlob(rng() * CW, rng() * CH, 5 + rng() * 14, 'rgba(255,255,255,0.1)');
   }
+
   ctx.restore();
 }
 
@@ -1486,10 +1750,37 @@ function strokePoly(poly, color, lineWidth) {
 
 /** Draw a hazard zone */
 function drawHazard(hz) {
-  let color, stroke;
-  if (hz.type === 'sand')  { color = 'rgba(212,170,82,0.82)';  stroke = 'rgba(220,180,90,0.95)'; }
-  if (hz.type === 'water') { color = 'rgba(26,90,154,0.88)';   stroke = 'rgba(38,113,194,0.95)'; }
-  if (hz.type === 'slick') { color = 'rgba(122,224,240,0.60)'; stroke = 'rgba(140,240,255,0.85)'; }
+  const styleMap = {
+    sand: ['rgba(212,170,82,0.82)', 'rgba(220,180,90,0.95)'],
+    water: ['rgba(26,90,154,0.88)', 'rgba(38,113,194,0.95)'],
+    slick: ['rgba(122,224,240,0.60)', 'rgba(140,240,255,0.85)'],
+    quicksand: ['rgba(174,134,70,0.86)', 'rgba(224,180,110,0.95)'],
+    honey: ['rgba(231,167,56,0.82)', 'rgba(255,197,88,0.95)'],
+    flytrap: ['rgba(66,120,60,0.82)', 'rgba(132,199,94,0.95)'],
+    vine: ['rgba(53,128,70,0.65)', 'rgba(116,209,130,0.9)'],
+    lava: ['rgba(181,54,19,0.84)', 'rgba(255,130,65,0.95)'],
+    mudpit: ['rgba(95,70,48,0.84)', 'rgba(133,99,66,0.95)'],
+    cornfield: ['rgba(165,157,58,0.6)', 'rgba(223,214,115,0.9)'],
+    cobweb: ['rgba(188,188,198,0.45)', 'rgba(235,235,246,0.7)'],
+    glass: ['rgba(180,224,255,0.28)', 'rgba(210,242,255,0.72)'],
+    gravity_zone: ['rgba(138,122,245,0.2)', 'rgba(182,166,255,0.55)'],
+    conveyor: ['rgba(42,109,115,0.56)', 'rgba(83,184,192,0.92)'],
+    abyss: ['rgba(14,14,22,0.85)', 'rgba(48,48,66,0.95)'],
+    deep_water: ['rgba(12,49,95,0.92)', 'rgba(36,98,172,0.95)'],
+    wave_water: ['rgba(22,101,168,0.82)', 'rgba(72,164,232,0.95)'],
+    water_slide: ['rgba(72,171,199,0.54)', 'rgba(144,232,251,0.92)'],
+    bubbles: ['rgba(117,209,235,0.34)', 'rgba(186,241,255,0.82)'],
+    ink: ['rgba(20,20,20,0.75)', 'rgba(54,54,54,0.95)'],
+    asphalt: ['rgba(82,85,92,0.82)', 'rgba(141,145,154,0.95)'],
+    alcohol: ['rgba(184,122,67,0.7)', 'rgba(230,168,110,0.92)'],
+    koi_pond: ['rgba(43,106,161,0.84)', 'rgba(85,176,219,0.92)'],
+    fan_zone: ['rgba(112,124,136,0.52)', 'rgba(180,196,208,0.88)'],
+    cloud: ['rgba(235,245,255,0.46)', 'rgba(255,255,255,0.86)'],
+    minecart: ['rgba(93,82,62,0.65)', 'rgba(145,128,102,0.9)'],
+    beanstalk: ['rgba(95,170,82,0.66)', 'rgba(164,230,136,0.94)'],
+    ice: ['rgba(194,235,255,0.58)', 'rgba(231,248,255,0.9)'],
+  };
+  const [color, stroke] = styleMap[hz.type] || ['rgba(212,170,82,0.82)', 'rgba(220,180,90,0.95)'];
 
   ctx.save();
   if (hz.shape === 'circle') {
@@ -1502,7 +1793,7 @@ function drawHazard(hz) {
     ctx.stroke();
 
     // Water ripple animation
-    if (hz.type === 'water') {
+    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond'])) {
       const t = performance.now() / 1000;
       for (let i = 0; i < 3; i++) {
         const phase = (t * 0.8 + i * 0.33) % 1;
@@ -1514,7 +1805,7 @@ function drawHazard(hz) {
       }
     }
     // Sand dots
-    if (hz.type === 'sand') {
+    if (hazardMatches(hz, ['sand', 'quicksand', 'mudpit'])) {
       ctx.globalAlpha = 0.45;
       ctx.fillStyle = '#e8c870';
       for (let i = 0; i < 18; i++) {
@@ -1533,7 +1824,7 @@ function drawHazard(hz) {
     ctx.lineWidth = 1.5;
     ctx.strokeRect(hz.x, hz.y, hz.w, hz.h);
 
-    if (hz.type === 'water') {
+    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond'])) {
       const t = performance.now() / 1000;
       ctx.globalAlpha = 0.25;
       ctx.strokeStyle = '#6ab4ff';
@@ -1547,7 +1838,7 @@ function drawHazard(hz) {
         ctx.stroke();
       }
     }
-    if (hz.type === 'sand') {
+    if (hazardMatches(hz, ['sand', 'quicksand', 'mudpit'])) {
       ctx.globalAlpha = 0.3;
       ctx.fillStyle = '#e8c870';
       for (let i = 0; i < 15; i++) {
@@ -1558,6 +1849,17 @@ function drawHazard(hz) {
         ctx.fill();
       }
     }
+  }
+
+  if (hazardMatches(hz, ['conveyor', 'water_slide', 'vine', 'minecart', 'beanstalk'])) {
+    const c = hz.shape === 'circle' ? { x: hz.cx, y: hz.cy } : { x: hz.x + hz.w / 2, y: hz.y + hz.h / 2 };
+    const a = getHazardAngle(hz);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c.x - Math.cos(a) * 14, c.y - Math.sin(a) * 14);
+    ctx.lineTo(c.x + Math.cos(a) * 14, c.y + Math.sin(a) * 14);
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -1620,9 +1922,15 @@ function drawBall(ball, sinkT) {
   ctx.fill();
   // Ball body
   const grad = ctx.createRadialGradient(x - 2, y - 2, 1, x, y, BALL_R);
-  grad.addColorStop(0, '#ffffff');
-  grad.addColorStop(0.7, '#e0e0e0');
-  grad.addColorStop(1, '#c0c0c0');
+  if (gs.ballTint) {
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.55, gs.ballTint);
+    grad.addColorStop(1, '#8f8f8f');
+  } else {
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.7, '#e0e0e0');
+    grad.addColorStop(1, '#c0c0c0');
+  }
   ctx.beginPath();
   ctx.arc(x, y, BALL_R, 0, Math.PI * 2);
   ctx.fillStyle = grad;
@@ -1859,6 +2167,44 @@ function drawObstacles(hole) {
     ctx.moveTo(ob.x1, ob.y1);
     ctx.lineTo(ob.x2, ob.y2);
     ctx.stroke();
+
+    const mx = (ob.x1 + ob.x2) * 0.5;
+    const my = (ob.y1 + ob.y2) * 0.5;
+    const len = Math.max(16, dist(ob.x1, ob.y1, ob.x2, ob.y2));
+    if (ob.kind === 'tree' || ob.kind === 'jungle_tree' || ob.kind === 'cherry_tree') {
+      ctx.fillStyle = ob.kind === 'cherry_tree' ? 'rgba(247,170,203,0.9)' : 'rgba(56,134,66,0.88)';
+      ctx.beginPath();
+      ctx.arc(mx, my, Math.min(24, len * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    } else if (ob.kind === 'bush' || ob.kind === 'coral') {
+      ctx.fillStyle = ob.kind === 'coral' ? 'rgba(226,122,112,0.88)' : 'rgba(96,160,84,0.84)';
+      ctx.beginPath();
+      ctx.arc(mx - 8, my, 8, 0, Math.PI * 2);
+      ctx.arc(mx + 2, my - 2, 10, 0, Math.PI * 2);
+      ctx.arc(mx + 12, my + 1, 7, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (ob.kind === 'windmill' || ob.kind === 'cogs') {
+      const t = performance.now() / 450;
+      ctx.strokeStyle = 'rgba(228,236,245,0.8)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        const a = t + i * (Math.PI * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(mx, my);
+        ctx.lineTo(mx + Math.cos(a) * 15, my + Math.sin(a) * 15);
+        ctx.stroke();
+      }
+    } else if (ob.kind === 'beach_ball' || ob.kind === 'jelly_bumper' || ob.kind === 'trampoline' || ob.kind === 'target') {
+      ctx.fillStyle = 'rgba(255,206,120,0.85)';
+      ctx.beginPath();
+      ctx.arc(mx, my, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,110,110,0.92)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(mx, my, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
   // Inner edge highlight
   ctx.strokeStyle = '#4a8455';
@@ -1934,12 +2280,44 @@ function drawHint() {
   ctx.restore();
 }
 
+function drawHazardScreenFX() {
+  const fx = gs.visualEffect || { ink: 0, dizzy: 0, corn: 0 };
+  if (!fx.ink && !fx.dizzy && !fx.corn) return;
+  ctx.save();
+  if (fx.corn) {
+    ctx.fillStyle = 'rgba(155,149,52,0.18)';
+    ctx.fillRect(0, 0, CW, CH);
+    for (let i = 0; i < 8; i++) {
+      ctx.fillStyle = 'rgba(215,206,95,0.14)';
+      ctx.fillRect(i * 100 + 12, 0, 22, CH);
+    }
+  }
+  if (fx.ink) {
+    for (let i = 0; i < 5; i++) {
+      ctx.fillStyle = 'rgba(15,15,15,0.28)';
+      ctx.beginPath();
+      ctx.arc(120 + i * 140, 70 + (i % 2) * 50, 45 + i * 7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (fx.dizzy) {
+    ctx.strokeStyle = 'rgba(255,220,170,0.2)';
+    ctx.lineWidth = 2;
+    for (let r = 60; r < 350; r += 34) {
+      ctx.beginPath();
+      ctx.arc(CW / 2, CH / 2, r, performance.now() / 4500, performance.now() / 4500 + Math.PI * 1.2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 /** Master render call */
 function render() {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
   ctx.clearRect(0, 0, CW, CH);
-  drawBackground();
+  drawBackground(gs.hole?.theme || 'jungle', gs.hole?.name || 'menu');
 
   const hole = gs.hole;
   // When no active hole (menu / profile state), show an animated demo
@@ -2015,6 +2393,8 @@ function render() {
 
   drawEditorOverlay(hole);
 
+  drawHazardScreenFX();
+
   // Hint
   if (!gs.aiming) drawHint();
 }
@@ -2087,11 +2467,16 @@ function onPointerDown(e) {
       saveEditorData();
       refreshEditorControls();
     } else if (gs.editor.tool === 'hazard') {
+      const hzBase = {
+        type: gs.editor.hazardType,
+        angleDeg: Number(gs.editor.obstacleAngle) || 0,
+        phase: Math.random() * Math.PI * 2,
+      };
       if (gs.editor.hazardShape === 'rect') {
         const w = clamp(gs.editor.hazardW, 8, 400);
         const h = clamp(gs.editor.hazardH, 8, 400);
         hole.hazards.push({
-          type: gs.editor.hazardType,
+          ...hzBase,
           shape: 'rect',
           x: c.x - w / 2,
           y: c.y - h / 2,
@@ -2099,7 +2484,7 @@ function onPointerDown(e) {
           h,
         });
       } else {
-        hole.hazards.push({ type: gs.editor.hazardType, shape: 'circle', cx: c.x, cy: c.y, r: clamp(gs.editor.hazardRadius, 8, 220) });
+        hole.hazards.push({ ...hzBase, shape: 'circle', cx: c.x, cy: c.y, r: clamp(gs.editor.hazardRadius, 8, 220) });
       }
       saveEditorData();
       refreshEditorControls();
@@ -2311,6 +2696,9 @@ function loadHole(idx) {
   };
   gs.lastSafe   = { x: gs.hole.ball.x, y: gs.hole.ball.y };
   gs.ballInWater = false;
+  gs.flyTrapFrames = 0;
+  gs.ballTint = null;
+  gs.visualEffect = { ink: 0, dizzy: 0, corn: 0 };
   gs.aiming     = false;
   gs.sinkTimer  = 0;
   gs.state      = State.PLAYING;
@@ -2628,6 +3016,16 @@ document.getElementById('selEditorTool').addEventListener('change', (e) => {
   gs.editor.dragAnchor = null;
 });
 
+document.getElementById('selHazardTheme').addEventListener('change', (e) => {
+  gs.editor.hazardTheme = e.target.value || 'generic';
+  refreshEditorControls();
+});
+
+document.getElementById('selObstacleTheme').addEventListener('change', (e) => {
+  gs.editor.obstacleTheme = e.target.value || 'generic';
+  refreshEditorControls();
+});
+
 document.getElementById('selEditorHazard').addEventListener('change', (e) => {
   gs.editor.hazardType = e.target.value;
   const hole = getActiveEditorHole();
@@ -2679,6 +3077,16 @@ document.getElementById('inpObstacleSize').addEventListener('change', (e) => {
 
 document.getElementById('inpObstacleAngle').addEventListener('change', (e) => {
   gs.editor.obstacleAngle = Number(e.target.value) || 0;
+  refreshEditorControls();
+});
+
+document.getElementById('inpCurveSmoothness').addEventListener('change', (e) => {
+  gs.editor.curveSmoothness = clamp(Number(e.target.value) || 3, 1, 5);
+  refreshEditorControls();
+});
+
+document.getElementById('inpCurveSamples').addEventListener('change', (e) => {
+  gs.editor.curveSamples = clamp(Number(e.target.value) || 9, 4, 18);
   refreshEditorControls();
 });
 
@@ -2771,6 +3179,14 @@ document.getElementById('btnCreateCourse').addEventListener('click', () => {
 
 document.getElementById('btnResetGeometry').addEventListener('click', () => {
   resetActiveHoleGeometryRounded();
+});
+
+document.getElementById('btnSmoothCurves').addEventListener('click', () => {
+  const hole = getActiveEditorHole();
+  if (!hole || hole.polygon.length < 3) return;
+  hole.polygon = smoothPolygonCurves(hole.polygon, gs.editor.curveSmoothness, gs.editor.curveSamples);
+  saveEditorData();
+  refreshEditorControls();
 });
 
 document.getElementById('btnAddVertex').addEventListener('click', () => {
@@ -2882,6 +3298,19 @@ function gameLoop() {
   if (gs.state === State.PLAYING) {
     const ball = gs.ball;
     const hole = gs.hole;
+
+    applyDynamicHazardEffects(ball, hole);
+
+    const inFlytrap = hole.hazards.some(hz => hz.type === 'flytrap' && inHazard(ball.x, ball.y, hz));
+    if (inFlytrap && !ball.moving) {
+      gs.flyTrapFrames++;
+      if (gs.flyTrapFrames > 90) {
+        gs.flyTrapFrames = 0;
+        applyWaterPenalty();
+      }
+    } else {
+      gs.flyTrapFrames = 0;
+    }
 
     if (ball.moving) {
       physicsTick(ball, hole);
