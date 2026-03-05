@@ -667,10 +667,10 @@ const OBSTACLE_CATALOG = [
   { id: 'bush',          label: 'Bush',                   elementTheme: 'generic', status: 'implemented' },
   { id: 'ramp',          label: 'Ramp',                   elementTheme: 'generic', status: 'implemented' },
   { id: 'pyramid',       label: 'Pyramid',                elementTheme: 'desert', status: 'implemented' },
-  { id: 'ruins',         label: 'Ruins',                  elementTheme: 'desert', status: 'planned' },
+  { id: 'ruins',         label: 'Ruins',                  elementTheme: 'desert', status: 'implemented' },
   { id: 'jelly_bumper',  label: 'Jelly Bumper',           elementTheme: 'candy', status: 'implemented' },
   { id: 'dinosaur',      label: 'Dinosaur',               elementTheme: 'jungle', status: 'planned' },
-  { id: 'volcano_spout', label: 'Volcano Spout',          elementTheme: 'volcano', status: 'planned' },
+  { id: 'volcano_spout', label: 'Volcano Spout',          elementTheme: 'volcano', status: 'implemented' },
   { id: 'windmill',      label: 'Windmill',               elementTheme: 'farm', status: 'implemented' },
   { id: 'coffin',        label: 'Coffin',                 elementTheme: 'haunted', status: 'implemented' },
   { id: 'tombstone',     label: 'Tombstone',              elementTheme: 'haunted', status: 'implemented' },
@@ -1474,8 +1474,14 @@ function refreshEditorControls() {
   }
   const selectedObs = hole.obstacles[gs.editor.selectedObstacleIdx] || null;
   if (selectedObs) {
-    gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
-    gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
+    if (selectedObs.dynamicType === 'volcano_spout') {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.spoutPower) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.blastRadius) || gs.editor.obstaclePath, 20, 420);
+      gs.editor.obstacleAngle = Math.round(Number(selectedObs.spoutAngleDeg) || gs.editor.obstacleAngle);
+    } else {
+      gs.editor.obstacleSpeed = clamp(Number(selectedObs.moveSpeed) || gs.editor.obstacleSpeed, 0.1, 5);
+      gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
+    }
   }
   selObs.value = gs.editor.obstacleType;
   inpObsSize.value = String(gs.editor.obstacleSize);
@@ -1757,6 +1763,28 @@ function placePresetObstacle(hole, c) {
       ob.lastBlastMs = 0;
       ob.pulseMs = 0;
     }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'volcano_spout') {
+    pushSeg(-16, 0, 16, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.dynamicType = 'volcano_spout';
+      ob.spoutAngleDeg = Number(gs.editor.obstacleAngle) || 0;
+      ob.spoutPower = clamp(motionSpeed * 1.2, 0.8, 4.2);
+      ob.blastRadius = clamp(motionPath * 0.5, 60, 210);
+      ob.burstEveryMs = Math.round(clamp(1750 - motionSpeed * 180, 700, 2300));
+      ob.burstWindowMs = 420;
+      ob.spoutPhaseMs = Math.random() * 1000;
+      ob.spoutActive = 0;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'ruins') {
+    pushSeg(-h * 0.52, -10, h * 0.52, -10);
+    pushSeg(-h * 0.36, 10, h * 0.36, 10);
     return;
   }
 
@@ -2104,6 +2132,15 @@ function updateDynamicObstacles(hole, tSec) {
       const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
       const open = (Math.sin(tSec * speed * 2 + (Number(ob.phase) || 0)) + 1) * 0.5;
       ob.openFraction = open;
+      continue;
+    }
+    if (ob.dynamicType === 'volcano_spout') {
+      const cycle = clamp(Number(ob.burstEveryMs) || 1600, 700, 3000);
+      const windowMs = clamp(Number(ob.burstWindowMs) || 420, 120, 1200);
+      const phaseMs = Number(ob.spoutPhaseMs) || 0;
+      const tMs = tSec * 1000 + phaseMs;
+      const local = ((tMs % cycle) + cycle) % cycle;
+      ob.spoutActive = local < windowMs ? 1 : 0;
     }
   }
 }
@@ -2112,6 +2149,29 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
   if (!ball || !hole || !Array.isArray(hole.obstacles)) return;
   const now = performance.now();
   for (const ob of hole.obstacles) {
+    if (ob.dynamicType === 'volcano_spout' && Number(ob.spoutActive) > 0.5) {
+      const mx = (ob.x1 + ob.x2) * 0.5;
+      const my = (ob.y1 + ob.y2) * 0.5;
+      const angle = (Number(ob.spoutAngleDeg) || 0) * Math.PI / 180;
+      const dx = ball.x - mx;
+      const dy = ball.y - my;
+      const d = Math.hypot(dx, dy);
+      const radius = clamp(Number(ob.blastRadius) || 120, 40, 240);
+      if (d < radius) {
+        const dirX = Math.cos(angle);
+        const dirY = Math.sin(angle);
+        const norm = d > 1e-3 ? 1 / d : 0;
+        const toward = dx * norm * dirX + dy * norm * dirY;
+        if (toward > 0.25 || d < 18) {
+          const power = clamp(Number(ob.spoutPower) || 1.6, 0.7, 4.5);
+          const strength = power * (1 - d / radius) * 0.32;
+          ball.vx += dirX * strength;
+          ball.vy += dirY * strength;
+          ball.moving = true;
+        }
+      }
+      continue;
+    }
     if (ob.dynamicType !== 'land_mine') continue;
     const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
     const cooldownMs = clamp(Number(ob.cooldownMs) || 1400, 300, 5000);
@@ -3161,6 +3221,50 @@ function drawObstacles(hole) {
       ctx.beginPath();
       ctx.arc(mx, my - bodyR * 0.2, 2.5, 0, Math.PI * 2);
       ctx.fill();
+    } else if (ob.kind === 'volcano_spout') {
+      const angle = (Number(ob.spoutAngleDeg) || 0) * Math.PI / 180;
+      const isActive = Number(ob.spoutActive) > 0.5;
+      const tipX = mx + Math.cos(angle) * 18;
+      const tipY = my + Math.sin(angle) * 18;
+      const sideA = angle + Math.PI * 0.5;
+      const sideX = Math.cos(sideA) * 8;
+      const sideY = Math.sin(sideA) * 8;
+
+      ctx.fillStyle = 'rgba(92,52,44,0.95)';
+      ctx.beginPath();
+      ctx.moveTo(mx - sideX, my - sideY);
+      ctx.lineTo(mx + sideX, my + sideY);
+      ctx.lineTo(tipX, tipY);
+      ctx.closePath();
+      ctx.fill();
+
+      if (isActive) {
+        const flameLen = clamp(Number(ob.blastRadius) || 120, 60, 220) * 0.45;
+        const flameTipX = tipX + Math.cos(angle) * flameLen;
+        const flameTipY = tipY + Math.sin(angle) * flameLen;
+        ctx.strokeStyle = 'rgba(255,132,74,0.88)';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(flameTipX, flameTipY);
+        ctx.stroke();
+      }
+    } else if (ob.kind === 'ruins') {
+      const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      const segLen = Math.max(22, dist(ob.x1, ob.y1, ob.x2, ob.y2));
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(a);
+      ctx.fillStyle = 'rgba(130,111,82,0.92)';
+      roundRect(ctx, -segLen * 0.5, -5, segLen, 10, 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(169,146,109,0.9)';
+      for (let i = -2; i <= 2; i++) {
+        const bx = i * (segLen / 5) + (i % 2 ? 3 : -2);
+        const bh = 4 + ((i + 3) % 3);
+        ctx.fillRect(bx - 3, -bh * 0.5, 6, bh);
+      }
+      ctx.restore();
     }
   }
   // Inner edge highlight
@@ -4102,6 +4206,9 @@ document.getElementById('inpObstacleAngle').addEventListener('change', (e) => {
   if (ob && ob.dynamicType === 'car') {
     ob.pathAngleDeg = gs.editor.obstacleAngle;
     saveEditorData();
+  } else if (ob && ob.dynamicType === 'volcano_spout') {
+    ob.spoutAngleDeg = gs.editor.obstacleAngle;
+    saveEditorData();
   }
   refreshEditorControls();
 });
@@ -4111,7 +4218,12 @@ document.getElementById('inpObstacleSpeed').addEventListener('change', (e) => {
   const hole = getActiveEditorHole();
   const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
   if (ob) {
-    ob.moveSpeed = gs.editor.obstacleSpeed;
+    if (ob.dynamicType === 'volcano_spout') {
+      ob.spoutPower = gs.editor.obstacleSpeed;
+      ob.burstEveryMs = Math.round(clamp(1750 - gs.editor.obstacleSpeed * 180, 700, 2300));
+    } else {
+      ob.moveSpeed = gs.editor.obstacleSpeed;
+    }
     saveEditorData();
   }
   refreshEditorControls();
@@ -4122,7 +4234,8 @@ document.getElementById('inpObstaclePath').addEventListener('change', (e) => {
   const hole = getActiveEditorHole();
   const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
   if (ob) {
-    ob.pathLen = gs.editor.obstaclePath;
+    if (ob.dynamicType === 'volcano_spout') ob.blastRadius = gs.editor.obstaclePath;
+    else ob.pathLen = gs.editor.obstaclePath;
     saveEditorData();
   }
   refreshEditorControls();
