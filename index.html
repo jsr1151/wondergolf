@@ -341,6 +341,7 @@
           <option value="tee">Set Tee Position</option>
           <option value="cup">Set Cup Position</option>
           <option value="hazard">Place Hazard</option>
+          <option value="wall">Place Wall Segment</option>
         </select>
       </label>
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Hazard Type (for Place Hazard tool)
@@ -354,7 +355,9 @@
       <button class="btn btn-secondary" id="btnAddVertex">＋ Add Vertex</button>
       <button class="btn btn-secondary" id="btnRemoveVertex">− Remove Vertex</button>
       <button class="btn btn-secondary" id="btnClearHazards">Clear Hazards</button>
+      <button class="btn btn-secondary" id="btnClearObstacles">Clear Obstacles</button>
       <button class="btn btn-secondary" id="btnTestHole">▶ Test This Hole</button>
+      <button class="btn btn-primary" id="btnPlayCourse">▶ Play Full Custom Course</button>
       <button class="btn btn-secondary" id="btnStopTest">■ Stop Testing</button>
       <button class="btn btn-secondary" id="btnExportCourses">📦 Export JSON to Console</button>
       <button class="btn btn-secondary" id="btnDeleteCourses">🗑 Delete All Custom Courses</button>
@@ -735,7 +738,9 @@ const State = {
 
 let gs = {               // game state object
   state:       State.MENU,
+  roundMode:   'daily',  // 'daily' | 'custom'
   round:       [],       // ordered array of 9 hole indices
+  customRoundHoles: null,
   holeIdx:     0,        // current index into round[]
   hole:        null,     // current hole definition
   strokes:     0,        // strokes on current hole
@@ -762,6 +767,8 @@ let gs = {               // game state object
     tool: 'vertex',
     hazardType: 'sand',
     dragVertexIdx: -1,
+    wallStart: null,
+    pointer: {x: 0, y: 0},
     testing: false,
   },
 };
@@ -991,6 +998,20 @@ function refreshEditorControls() {
 
 function applyThemeToHole(hole, themeName) {
   hole.theme = THEME_CATALOG.includes(themeName) ? themeName : 'desert';
+}
+
+function getRoundHoleCount() {
+  if (gs.roundMode === 'custom' && Array.isArray(gs.customRoundHoles)) {
+    return gs.customRoundHoles.length;
+  }
+  return HOLES_PER_ROUND;
+}
+
+function getHoleAtRoundIndex(idx) {
+  if (gs.roundMode === 'custom' && Array.isArray(gs.customRoundHoles)) {
+    return gs.customRoundHoles[idx] || null;
+  }
+  return HOLE_POOL[gs.round[idx]] || null;
 }
 
 function resetActiveHoleGeometryRounded() {
@@ -1568,7 +1589,19 @@ function drawEditorOverlay(hole) {
   ctx.font = '12px system-ui';
   ctx.textAlign = 'left';
   ctx.fillText(`Editor Tool: ${gs.editor.tool}`, 16, CH - 44);
-  ctx.fillText('Drag vertices or click to place tee/cup/hazard', 16, CH - 24);
+  const tip = gs.editor.tool === 'wall'
+    ? 'Click start point, then click end point to place wall'
+    : 'Drag vertices or click to place tee/cup/hazard';
+  ctx.fillText(tip, 16, CH - 24);
+
+  if (gs.editor.tool === 'wall' && gs.editor.wallStart) {
+    ctx.strokeStyle = 'rgba(255,220,130,0.85)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(gs.editor.wallStart.x, gs.editor.wallStart.y);
+    ctx.lineTo(gs.editor.pointer.x, gs.editor.pointer.y);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -1612,7 +1645,7 @@ function drawHUD() {
 
   // Items
   const items = [
-    { label: 'HOLE',    value: `${gs.holeIdx + 1} / ${HOLES_PER_ROUND}` },
+    { label: 'HOLE',    value: `${gs.holeIdx + 1} / ${getRoundHoleCount()}` },
     { label: 'PAR',     value: String(hole.par)                          },
     { label: 'STROKES', value: String(gs.strokes)                        },
     { label: 'TOTAL',   value: String(gs.totalStrokes)                   },
@@ -1757,23 +1790,35 @@ function onPointerDown(e) {
   if (gs.state === State.EDITOR) {
     const hole = getActiveEditorHole();
     if (!hole) return;
+    const c = clampPointToCanvas(p);
+    gs.editor.pointer = c;
     if (gs.editor.tool === 'vertex') {
-      gs.editor.dragVertexIdx = nearestVertexIndex(hole.polygon, p);
+      gs.editor.dragVertexIdx = nearestVertexIndex(hole.polygon, c);
     } else if (gs.editor.tool === 'tee') {
-      hole.ball = clampPointToCanvas(p);
+      hole.ball = c;
       gs.ball.x = hole.ball.x;
       gs.ball.y = hole.ball.y;
       saveEditorData();
       refreshEditorControls();
     } else if (gs.editor.tool === 'cup') {
-      hole.cup = clampPointToCanvas(p);
+      hole.cup = c;
       saveEditorData();
       refreshEditorControls();
     } else if (gs.editor.tool === 'hazard') {
-      const c = clampPointToCanvas(p);
       hole.hazards.push({ type: gs.editor.hazardType, shape: 'circle', cx: c.x, cy: c.y, r: 48 });
       saveEditorData();
       refreshEditorControls();
+    } else if (gs.editor.tool === 'wall') {
+      if (!gs.editor.wallStart) {
+        gs.editor.wallStart = c;
+      } else {
+        if (dist(gs.editor.wallStart.x, gs.editor.wallStart.y, c.x, c.y) >= 6) {
+          hole.obstacles.push({ x1: gs.editor.wallStart.x, y1: gs.editor.wallStart.y, x2: c.x, y2: c.y });
+          saveEditorData();
+          refreshEditorControls();
+        }
+        gs.editor.wallStart = null;
+      }
     }
     e.preventDefault();
     return;
@@ -1800,6 +1845,10 @@ function onPointerDown(e) {
 }
 
 function onPointerMove(e) {
+  if (gs.state === State.EDITOR) {
+    gs.editor.pointer = clampPointToCanvas(getEventPos(e));
+  }
+
   if (gs.state === State.EDITOR && gs.editor.dragVertexIdx >= 0) {
     const hole = getActiveEditorHole();
     if (!hole) return;
@@ -1868,6 +1917,8 @@ function buildRound() {
 
 /** Start a new round */
 function startRound() {
+  gs.roundMode    = 'daily';
+  gs.customRoundHoles = null;
   gs.round        = buildRound();
   gs.holeIdx      = 0;
   gs.scores       = [];
@@ -1876,10 +1927,24 @@ function startRound() {
   loadHole(0);
 }
 
+function startCustomCourseRound(course) {
+  if (!course || !Array.isArray(course.holes) || !course.holes.length) return;
+  gs.roundMode = 'custom';
+  gs.customRoundHoles = JSON.parse(JSON.stringify(course.holes));
+  gs.round = [];
+  gs.holeIdx = 0;
+  gs.scores = [];
+  gs.totalStrokes = 0;
+  gs.waterPenalties = 0;
+  gs.editor.testing = false;
+  loadHole(0);
+}
+
 /** Load hole by round index */
 function loadHole(idx) {
   gs.holeIdx = idx;
-  gs.hole    = HOLE_POOL[gs.round[idx]];
+  gs.hole    = getHoleAtRoundIndex(idx);
+  if (!gs.hole) return;
   gs.strokes = 0;
   gs.ball    = {
     x: gs.hole.ball.x,
@@ -1922,7 +1987,7 @@ function finishHole() {
   gs.scores.push(gs.strokes);
   checkAndUnlockAchievements();
 
-  if (gs.holeIdx + 1 >= HOLES_PER_ROUND) {
+  if (gs.holeIdx + 1 >= getRoundHoleCount()) {
     // Round complete
     showHoleComplete(() => showScorecard());
   } else {
@@ -1936,7 +2001,9 @@ function checkAndUnlockAchievements() {
   const unlocked = new Set(prof.achievements);
   const strokes = gs.strokes;
   const hole    = gs.hole;
-  const totalPar = gs.round.reduce((s, idx) => s + HOLE_POOL[idx].par, 0);
+  const totalPar = gs.roundMode === 'custom' && Array.isArray(gs.customRoundHoles)
+    ? gs.customRoundHoles.reduce((s, h) => s + (h.par || 3), 0)
+    : gs.round.reduce((s, idx) => s + HOLE_POOL[idx].par, 0);
 
   if (strokes === 1)                           unlocked.add('ace');
   if (strokes <= hole.par - 2)                 unlocked.add('eagle');
@@ -1944,7 +2011,7 @@ function checkAndUnlockAchievements() {
   if (hole.par === 2 && strokes === 1)         unlocked.add('speedster');
 
   // Round-level checks (only after last hole)
-  if (gs.scores.length === HOLES_PER_ROUND) {
+  if (gs.scores.length === getRoundHoleCount()) {
     if (gs.totalStrokes < totalPar)            unlocked.add('underpar');
     if (gs.waterPenalties === 0)               unlocked.add('nohazard');
   }
@@ -2003,7 +2070,7 @@ function showHoleComplete(afterNext) {
   saveProfile(prof);
 
   document.getElementById('hcHoleName').textContent =
-    `Hole ${gs.holeIdx + 1} of ${HOLES_PER_ROUND} · ${hole.name}`;
+    `Hole ${gs.holeIdx + 1} of ${getRoundHoleCount()} · ${hole.name}`;
 
   const badge = document.getElementById('hcBadge');
   badge.textContent = scoreLabel(str, par);
@@ -2027,8 +2094,8 @@ function showScorecard() {
   let totalPar = 0, totalStrokes = 0, totalXP = 0;
 
   gs.scores.forEach((str, i) => {
-    const holeIdx = gs.round[i];
-    const hole    = HOLE_POOL[holeIdx];
+    const hole    = getHoleAtRoundIndex(i);
+    if (!hole) return;
     const par     = hole.par;
     const xp      = getXP(str, par);
     totalPar    += par;
@@ -2065,7 +2132,7 @@ function showScorecard() {
 function showPauseScreen() {
   const hole = gs.hole;
   const info = hole
-    ? `Hole ${gs.holeIdx + 1} of ${HOLES_PER_ROUND} · ${hole.name} · ${gs.strokes} stroke${gs.strokes !== 1 ? 's' : ''}`
+    ? `Hole ${gs.holeIdx + 1} of ${getRoundHoleCount()} · ${hole.name} · ${gs.strokes} stroke${gs.strokes !== 1 ? 's' : ''}`
     : '';
   document.getElementById('pauseHoleInfo').textContent = gs.editor.testing
     ? `${info} · Editor Test (press E to return)`
@@ -2116,6 +2183,7 @@ function showEditorScreen() {
     saveEditorData();
   }
   gs.editor.testing = false;
+  gs.editor.wallStart = null;
   updateEditorPreviewHole();
   refreshEditorControls();
   gs.state = State.EDITOR;
@@ -2192,6 +2260,7 @@ document.getElementById('inpEditorCourseName').addEventListener('change', (e) =>
 document.getElementById('selEditorTool').addEventListener('change', (e) => {
   gs.editor.tool = e.target.value;
   gs.editor.dragVertexIdx = -1;
+  gs.editor.wallStart = null;
 });
 
 document.getElementById('selEditorHazard').addEventListener('change', (e) => {
@@ -2276,8 +2345,23 @@ document.getElementById('btnClearHazards').addEventListener('click', () => {
   refreshEditorControls();
 });
 
+document.getElementById('btnClearObstacles').addEventListener('click', () => {
+  const hole = getActiveEditorHole();
+  if (!hole) return;
+  hole.obstacles = [];
+  gs.editor.wallStart = null;
+  saveEditorData();
+  refreshEditorControls();
+});
+
 document.getElementById('btnTestHole').addEventListener('click', () => {
   startEditorHoleTest();
+});
+
+document.getElementById('btnPlayCourse').addEventListener('click', () => {
+  const course = getActiveEditorCourse();
+  if (!course) return;
+  startCustomCourseRound(course);
 });
 
 document.getElementById('btnStopTest').addEventListener('click', () => {
@@ -2354,7 +2438,7 @@ function gameLoop() {
           // Auto-advance: too many strokes
           gs.scores.push(gs.strokes);
           checkAndUnlockAchievements();
-          if (gs.holeIdx + 1 >= HOLES_PER_ROUND) {
+          if (gs.holeIdx + 1 >= getRoundHoleCount()) {
             showHoleComplete(() => showScorecard());
           } else {
             showHoleComplete(null);
