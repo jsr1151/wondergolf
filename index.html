@@ -533,10 +533,10 @@
       <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Size
         <input id="inpObstacleSize" type="number" min="20" max="280" step="1" style="width:100%;margin-top:4px">
       </label>
-      <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Angle (degrees)
+      <label class="editor-build-block editor-obstacle-block" id="obsCtrlAngle" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Angle (degrees)
         <input id="inpObstacleAngle" type="number" min="-180" max="180" step="1" style="width:100%;margin-top:4px">
       </label>
-      <div class="editor-build-block editor-obstacle-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+      <div class="editor-build-block editor-obstacle-block" id="obsCtrlColors" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Obstacle Color
           <input id="inpObstacleColor" type="color" style="width:100%;height:30px;margin-top:4px;padding:0;border:0;background:transparent" value="#3a6a45">
         </label>
@@ -544,7 +544,7 @@
           <input id="inpObstacleAccent" type="color" style="width:100%;height:30px;margin-top:4px;padding:0;border:0;background:transparent" value="#4a8455">
         </label>
       </div>
-      <div class="editor-build-block editor-obstacle-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+      <div class="editor-build-block editor-obstacle-block" id="obsCtrlMotion" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
         <label style="font-size:0.78rem;color:var(--text-dim)">Obstacle Speed
           <input id="inpObstacleSpeed" type="number" min="0.1" max="5" step="0.1" style="width:100%;margin-top:4px">
         </label>
@@ -552,7 +552,7 @@
           <input id="inpObstaclePath" type="number" min="20" max="420" step="1" style="width:100%;margin-top:4px">
         </label>
       </div>
-      <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Movement Pattern
+      <label class="editor-build-block editor-obstacle-block" id="obsCtrlPattern" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Movement Pattern
         <select id="selObstaclePattern" style="width:100%;margin-top:4px">
           <option value="line">Line</option>
           <option value="circle">Circle</option>
@@ -561,8 +561,8 @@
           <option value="drift">Drift</option>
         </select>
       </label>
-      <div class="editor-build-block editor-obstacle-block" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
-        <label style="font-size:0.78rem;color:var(--text-dim)">Tree Type
+      <div class="editor-build-block editor-obstacle-block" id="obsCtrlAdvanced" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
+        <label id="obsCtrlTreeType" style="font-size:0.78rem;color:var(--text-dim)">Tree Type
           <select id="selTreeType" style="width:100%;margin-top:4px">
             <option value="random">Random</option>
             <option value="deciduous">Deciduous</option>
@@ -570,13 +570,13 @@
             <option value="palm">Palm</option>
           </select>
         </label>
-        <label style="font-size:0.78rem;color:var(--text-dim)">Effect Timer (s)
+        <label id="obsCtrlTimer" style="font-size:0.78rem;color:var(--text-dim)">Effect Timer (s)
           <input id="inpObstacleTimer" type="number" min="0.1" max="8" step="0.1" style="width:100%;margin-top:4px">
         </label>
-        <label style="font-size:0.78rem;color:var(--text-dim)">Count / Blades
+        <label id="obsCtrlCount" style="font-size:0.78rem;color:var(--text-dim)">Count / Blades
           <input id="inpObstacleCount" type="number" min="1" max="8" step="1" style="width:100%;margin-top:4px">
         </label>
-        <label style="font-size:0.78rem;color:var(--text-dim);display:flex;align-items:center;gap:6px;padding-top:20px">
+        <label id="obsCtrlBounded" style="font-size:0.78rem;color:var(--text-dim);display:flex;align-items:center;gap:6px;padding-top:20px">
           <input id="chkObstacleBounded" type="checkbox" checked> Bound To Map
         </label>
       </div>
@@ -1436,6 +1436,15 @@ function refreshEditorControls() {
   const inpObsTimer = document.getElementById('inpObstacleTimer');
   const inpObsCount = document.getElementById('inpObstacleCount');
   const chkObsBounded = document.getElementById('chkObstacleBounded');
+  const obsCtrlAngle = document.getElementById('obsCtrlAngle');
+  const obsCtrlColors = document.getElementById('obsCtrlColors');
+  const obsCtrlMotion = document.getElementById('obsCtrlMotion');
+  const obsCtrlPattern = document.getElementById('obsCtrlPattern');
+  const obsCtrlAdvanced = document.getElementById('obsCtrlAdvanced');
+  const obsCtrlTreeType = document.getElementById('obsCtrlTreeType');
+  const obsCtrlTimer = document.getElementById('obsCtrlTimer');
+  const obsCtrlCount = document.getElementById('obsCtrlCount');
+  const obsCtrlBounded = document.getElementById('obsCtrlBounded');
   const contextChips = document.getElementById('editorContextChips');
   const summary = document.getElementById('editorSummary');
 
@@ -1628,6 +1637,35 @@ function refreshEditorControls() {
   inpObsTimer.value = String(gs.editor.obstacleTimer || 1.2);
   inpObsCount.value = String(gs.editor.obstacleCount || 2);
   chkObsBounded.checked = gs.editor.obstacleBounded !== false;
+
+  const obsType = gs.editor.obstacleType;
+  const showMotionSet = new Set(['windmill', 'car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'ramp', 'jelly_bumper', 'target', 'trampoline', 'land_mine']);
+  const showPathSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout']);
+  const showPatternSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds', 'hot_air']);
+  const showTimerSet = new Set(['windmill', 'volcano_spout', 'ramp', 'timed_gate', 'coffin']);
+  const showCountSet = new Set(['windmill', 'birds', 'cogs']);
+  const showBoundedSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds']);
+  const showAngleSet = new Set(['bar', 'gate', 'cross', 'zigzag', 'car', 'volcano_spout', 'hot_air', 'dragon', 'birds', 'ramp', 'cogs', 'timed_gate', 'coffin']);
+  const showTreeType = obsType === 'tree';
+  const showMotion = showMotionSet.has(obsType);
+  const showPath = showPathSet.has(obsType);
+  const showPattern = showPatternSet.has(obsType);
+  const showTimer = showTimerSet.has(obsType);
+  const showCount = showCountSet.has(obsType);
+  const showBounded = showBoundedSet.has(obsType);
+  const showAdvanced = showTreeType || showTimer || showCount || showBounded;
+
+  if (obsCtrlAngle) obsCtrlAngle.classList.toggle('gone', !showAngleSet.has(obsType));
+  if (obsCtrlColors) obsCtrlColors.classList.toggle('gone', false);
+  if (obsCtrlMotion) obsCtrlMotion.classList.toggle('gone', !showMotion);
+  if (obsCtrlPattern) obsCtrlPattern.classList.toggle('gone', !showPattern);
+  if (obsCtrlAdvanced) obsCtrlAdvanced.classList.toggle('gone', !showAdvanced);
+  if (obsCtrlTreeType) obsCtrlTreeType.classList.toggle('gone', !showTreeType);
+  if (obsCtrlTimer) obsCtrlTimer.classList.toggle('gone', !showTimer);
+  if (obsCtrlCount) obsCtrlCount.classList.toggle('gone', !showCount);
+  if (obsCtrlBounded) obsCtrlBounded.classList.toggle('gone', !showBounded);
+  if (inpObsSpeed && inpObsSpeed.parentElement) inpObsSpeed.parentElement.classList.toggle('gone', !showMotion);
+  if (inpObsPath && inpObsPath.parentElement) inpObsPath.parentElement.classList.toggle('gone', !showPath);
 
   contextChips.innerHTML = [
     `Hole Theme: ${formatThemeWithEmoji(hole.theme || 'desert')}`,
@@ -3159,7 +3197,9 @@ function updateDynamicObstacles(hole, tSec) {
   for (const ob of hole.obstacles) {
     if (ob.dynamicType === 'windmill') {
       const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
-      const a = tSec * speed * 1.8 + (Number(ob.baseAngle) || 0) + (Number(ob.phase) || 0);
+      const swingSec = clamp(Number(ob.swingSec) || 1.2, 0.15, 8);
+      const spin = ((Math.PI * 2) / swingSec) * speed * 0.45;
+      const a = tSec * spin + (Number(ob.baseAngle) || 0) + (Number(ob.phase) || 0);
       const arm = clamp(Number(ob.armLen) || 40, 10, 180);
       const cx = clamp(Number(ob.pivotX) || 0, 18, CW - 18);
       const cy = clamp(Number(ob.pivotY) || 0, 18, CH - 18);
@@ -3233,6 +3273,7 @@ function updateDynamicObstacles(hole, tSec) {
       const tMs = tSec * 1000 + phaseMs;
       const local = ((tMs % cycle) + cycle) % cycle;
       ob.spoutActive = local < windowMs ? 1 : 0;
+      ob.spoutPulse = ob.spoutActive ? (1 - local / Math.max(1, windowMs)) : 0;
       continue;
     }
     if (ob.dynamicType === 'birds') {
@@ -3240,9 +3281,10 @@ function updateDynamicObstacles(hole, tSec) {
       const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
       const pattern = ob.pattern || 'v';
       const phase = Number(ob.phase) || 0;
+      const baseA = (Number(ob.pathAngleDeg) || 0) * Math.PI / 180;
       let cx = Number(ob.baseX) || 0;
       let cy = Number(ob.baseY) || 0;
-      let a = (Number(ob.pathAngleDeg) || 0) * Math.PI / 180;
+      let a = baseA;
       if (pattern === 'circle') {
         cx += Math.cos(tSec * speed + phase) * pathLen * 0.35;
         cy += Math.sin(tSec * speed + phase) * pathLen * 0.35;
@@ -3252,7 +3294,7 @@ function updateDynamicObstacles(hole, tSec) {
         cy += Math.cos(tSec * speed * 1.1 + phase * 0.8) * pathLen * 0.28;
         a += Math.sin(tSec * speed * 1.5 + phase) * 0.6;
       } else if (pattern === 'drift') {
-        cx += tSec * speed * 24 % Math.max(30, pathLen) - Math.max(30, pathLen) * 0.5;
+        cx += (tSec * speed * 24 + phase * 16) % Math.max(30, pathLen) - Math.max(30, pathLen) * 0.5;
         cy += Math.sin(tSec * speed * 0.6 + phase) * pathLen * 0.2;
         a = baseA;
       } else {
@@ -3267,6 +3309,10 @@ function updateDynamicObstacles(hole, tSec) {
       ob.y1 = clamp(cy - Math.sin(perp) * wing * vSpread, 18, CH - 18);
       ob.x2 = clamp(cx + Math.cos(perp) * wing * vSpread, 18, CW - 18);
       ob.y2 = clamp(cy + Math.sin(perp) * wing * vSpread, 18, CH - 18);
+      if (ob.boundToMap === false) {
+        if (ob.x1 < -30 && ob.x2 < -30) ob.baseX = CW + 26;
+        else if (ob.x1 > CW + 30 && ob.x2 > CW + 30) ob.baseX = -26;
+      }
       ob.cx = cx;
       ob.cy = cy;
       continue;
@@ -3293,9 +3339,17 @@ function updateDynamicObstacles(hole, tSec) {
         x += Math.sin(tSec * speed + phase) * pathLen * 0.34;
         y += Math.sin(tSec * speed * 0.6 + phase * 1.4) * pathLen * 0.22;
       }
+      // Floating bubbles bias upward while still drifting side-to-side.
+      y -= speed * 0.28;
       if (ob.boundToMap === false) {
         ob.x1 = x;
         ob.y1 = y;
+        if (ob.y1 < -24) {
+          ob.baseY = CH + 24;
+          ob.baseX = ((Number(ob.baseX) || ob.x1) + 40 + Math.random() * 80) % (CW + 40) - 20;
+          ob.phase = Math.random() * Math.PI * 2;
+          ob.y1 = Number(ob.baseY);
+        }
       } else {
         ob.x1 = clamp(x, 18, CW - 18);
         ob.y1 = clamp(y, 18, CH - 18);
@@ -3372,8 +3426,11 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
       if (d < BALL_R + 5) {
         const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1) + Math.PI * 0.5;
         const s = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
-        ball.vx += Math.cos(a) * (0.15 + s * 0.06);
-        ball.vy += Math.sin(a) * (0.15 + s * 0.06);
+        const swingSec = clamp(Number(ob.swingSec) || 1.2, 0.15, 8);
+        const spinFactor = clamp(1.5 / swingSec, 0.45, 2.2);
+        const push = 0.13 + s * 0.045 + spinFactor * 0.06;
+        ball.vx += Math.cos(a) * push;
+        ball.vy += Math.sin(a) * push;
         ball.moving = true;
       }
       continue;
@@ -3455,8 +3512,9 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
       const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
       if (d < BALL_R + 11) {
         const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1) + Math.PI * 0.5;
-        ball.vx += Math.cos(a) * 0.08;
-        ball.vy += Math.sin(a) * 0.08;
+        const flutter = 0.07 + Math.abs(Math.sin((Number(ob.phase) || 0) + tSec * 5.2)) * 0.05;
+        ball.vx += Math.cos(a) * flutter;
+        ball.vy += Math.sin(a) * flutter;
         ball.moving = true;
       }
       continue;
@@ -7330,6 +7388,7 @@ document.getElementById('selEditorObstacle').addEventListener('change', (e) => {
   gs.editor.obstacleType = e.target.value;
   gs.editor.wallStart = null;
   gs.editor.hazardPathStart = null;
+  refreshEditorControls();
 });
 
 document.getElementById('inpObstacleSize').addEventListener('change', (e) => {
