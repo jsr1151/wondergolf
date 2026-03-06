@@ -1770,6 +1770,7 @@ function refreshEditorControls() {
   inpObsSpread.value = String(gs.editor.obstacleSpread || 14);
   inpObsLoose.value = String(gs.editor.obstacleLoose ?? 0.45);
   inpObsCarry.value = String(gs.editor.obstacleCarry || 0.9);
+  const obsType = gs.editor.obstacleType;
 
   const modeOptions = obsType === 'donut'
     ? [
@@ -1797,7 +1798,6 @@ function refreshEditorControls() {
     selObsMode.value = modeVal;
   }
 
-  const obsType = gs.editor.obstacleType;
   const showMotionSet = new Set(['windmill', 'car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'ramp', 'jelly_bumper', 'target', 'trampoline', 'land_mine', 'meteor', 'steam', 'steam_geyser', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern', 'trebuchet', 'cannon', 'bow_arrow', 'traffic_light', 'umbrella', 'lily_pad']);
   const showPathSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'steam_geyser', 'meteor', 'steam', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern', 'pressure_plate', 'traffic_light', 'bow_arrow']);
   const showPatternSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds', 'hot_air', 'meteor', 'steam', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern']);
