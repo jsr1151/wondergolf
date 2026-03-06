@@ -757,29 +757,59 @@ const OBSTACLE_CATALOG = [
   { id: 'rock',          label: 'Rock',                   elementTheme: 'generic', status: 'implemented' },
   { id: 'ramp',          label: 'Ramp',                   elementTheme: 'generic', status: 'implemented' },
   { id: 'pyramid',       label: 'Pyramid',                elementTheme: 'desert', status: 'implemented' },
+  { id: 'obelisk',       label: 'Obelisk',                elementTheme: 'desert', status: 'implemented' },
   { id: 'ruins',         label: 'Ruins',                  elementTheme: 'desert', status: 'implemented' },
+  { id: 'donut',         label: 'Donut Ring',             elementTheme: 'candy', status: 'implemented' },
+  { id: 'candy_cane',    label: 'Candy Cane',             elementTheme: 'candy', status: 'implemented' },
+  { id: 'lollipop_tree', label: 'Lollipop Tree',          elementTheme: 'candy', status: 'implemented' },
   { id: 'jelly_bumper',  label: 'Jelly Bumper',           elementTheme: 'candy', status: 'implemented' },
   { id: 'flytrap',       label: 'Fly Trap',               elementTheme: 'jungle', status: 'implemented' },
+  { id: 'jungle_tree',   label: 'Jungle Tree',            elementTheme: 'jungle', status: 'implemented' },
   { id: 'dinosaur',      label: 'Dinosaur',               elementTheme: 'jungle', status: 'implemented' },
   { id: 'volcano_spout', label: 'Volcano Spout',          elementTheme: 'volcano', status: 'implemented' },
+  { id: 'meteor',        label: 'Meteor',                 elementTheme: 'volcano', status: 'implemented' },
+  { id: 'steam_geyser',  label: 'Steam Geyser',           elementTheme: 'volcano', status: 'implemented' },
+  { id: 'barn',          label: 'Barn',                   elementTheme: 'farm', status: 'implemented' },
   { id: 'windmill',      label: 'Windmill',               elementTheme: 'farm', status: 'implemented' },
   { id: 'coffin',        label: 'Coffin',                 elementTheme: 'haunted', status: 'implemented' },
   { id: 'tombstone',     label: 'Tombstone',              elementTheme: 'haunted', status: 'implemented' },
+  { id: 'bats',          label: 'Bats',                   elementTheme: 'haunted', status: 'implemented' },
+  { id: 'pumpkin',       label: 'Pumpkin',                elementTheme: 'haunted', status: 'implemented' },
   { id: 'planet',        label: 'Planet',                 elementTheme: 'space', status: 'implemented' },
+  { id: 'ufo',           label: 'UFO',                    elementTheme: 'space', status: 'implemented' },
+  { id: 'asteroid_belt', label: 'Asteroid Belt',          elementTheme: 'space', status: 'implemented' },
+  { id: 'shooting_star', label: 'Shooting Star',          elementTheme: 'space', status: 'implemented' },
   { id: 'target',        label: 'Target',                 elementTheme: 'medieval', status: 'implemented' },
+  { id: 'trebuchet',     label: 'Trebuchet',              elementTheme: 'medieval', status: 'implemented' },
+  { id: 'bow_arrow',     label: 'Bow And Arrow',          elementTheme: 'medieval', status: 'implemented' },
+  { id: 'suit_armor',    label: 'Suit Of Armor',          elementTheme: 'medieval', status: 'implemented' },
+  { id: 'pressure_plate', label: 'Pressure Plate',        elementTheme: 'cyber', status: 'implemented' },
   { id: 'timed_gate',    label: 'Timed Gate',             elementTheme: 'cyber', status: 'implemented' },
+  { id: 'cannon',        label: 'Cannon',                 elementTheme: 'carnival', status: 'implemented' },
   { id: 'trampoline',    label: 'Trampoline',             elementTheme: 'carnival', status: 'implemented' },
   { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'implemented' },
+  { id: 'umbrella',      label: 'Umbrella',               elementTheme: 'beach', status: 'implemented' },
   { id: 'beach_ball',    label: 'Beach Ball',             elementTheme: 'beach', status: 'implemented' },
   { id: 'bubbles',       label: 'Bubble Trap',            elementTheme: 'underwater', status: 'implemented' },
   { id: 'coral',         label: 'Coral',                  elementTheme: 'underwater', status: 'implemented' },
+  { id: 'fish',          label: 'Fish',                   elementTheme: 'underwater', status: 'implemented' },
+  { id: 'shark',         label: 'Shark',                  elementTheme: 'underwater', status: 'implemented' },
+  { id: 'squid',         label: 'Squid',                  elementTheme: 'underwater', status: 'implemented' },
   { id: 'car',           label: 'Car',                    elementTheme: 'urban', status: 'implemented' },
+  { id: 'traffic_cone',  label: 'Traffic Cone',           elementTheme: 'urban', status: 'implemented' },
+  { id: 'traffic_light', label: 'Traffic Light',          elementTheme: 'urban', status: 'implemented' },
+  { id: 'tumbleweed',    label: 'Tumbleweed',             elementTheme: 'western', status: 'implemented' },
   { id: 'cactus',        label: 'Cactus',                 elementTheme: 'western', status: 'implemented' },
+  { id: 'floating_lantern', label: 'Floating Lantern',    elementTheme: 'asian', status: 'implemented' },
+  { id: 'lily_pad',      label: 'Lily Pad',               elementTheme: 'asian', status: 'implemented' },
   { id: 'cherry_tree',   label: 'Cherry Blossom',         elementTheme: 'asian', status: 'implemented' },
+  { id: 'shuriken',      label: 'Shuriken',               elementTheme: 'asian', status: 'implemented' },
   { id: 'cogs',          label: 'Cogs',                   elementTheme: 'factory', status: 'implemented' },
+  { id: 'steam',         label: 'Steam Cloud',            elementTheme: 'factory', status: 'implemented' },
   { id: 'hot_air',       label: 'Hot Air Balloon',        elementTheme: 'sky', status: 'implemented' },
   { id: 'dragon',        label: 'Dragon',                 elementTheme: 'mythology', status: 'implemented' },
   { id: 'stalagmite',    label: 'Stalagmite',             elementTheme: 'cavern', status: 'implemented' },
+  { id: 'gemstone',      label: 'Gemstone',               elementTheme: 'cavern', status: 'implemented' },
   { id: 'golden_egg',    label: 'Golden Egg',             elementTheme: 'fairy tale', status: 'implemented' },
   { id: 'land_mine',     label: 'Land Mine',              elementTheme: 'war', status: 'implemented' },
   { id: 'snowman',       label: 'Snowman',                elementTheme: 'snow', status: 'implemented' },
@@ -1723,19 +1753,19 @@ function refreshEditorControls() {
   inpObsCarry.value = String(gs.editor.obstacleCarry || 0.9);
 
   const obsType = gs.editor.obstacleType;
-  const showMotionSet = new Set(['windmill', 'car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'ramp', 'jelly_bumper', 'target', 'trampoline', 'land_mine']);
-  const showPathSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout']);
-  const showPatternSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds', 'hot_air']);
-  const showTimerSet = new Set(['windmill', 'volcano_spout', 'ramp', 'timed_gate', 'coffin', 'beach_ball', 'trampoline', 'bubbles']);
-  const showCountSet = new Set(['windmill', 'birds', 'cogs']);
-  const showBoundedSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds']);
-  const showSpawnerSet = new Set(['birds']);
+  const showMotionSet = new Set(['windmill', 'car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'ramp', 'jelly_bumper', 'target', 'trampoline', 'land_mine', 'meteor', 'steam', 'steam_geyser', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern', 'trebuchet', 'cannon', 'bow_arrow', 'traffic_light', 'umbrella', 'lily_pad']);
+  const showPathSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'meteor', 'steam', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern']);
+  const showPatternSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds', 'hot_air', 'meteor', 'steam', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern']);
+  const showTimerSet = new Set(['windmill', 'volcano_spout', 'steam_geyser', 'ramp', 'timed_gate', 'coffin', 'beach_ball', 'trampoline', 'bubbles', 'pressure_plate', 'traffic_light', 'umbrella', 'trebuchet', 'cannon', 'bow_arrow']);
+  const showCountSet = new Set(['windmill', 'birds', 'cogs', 'bats']);
+  const showBoundedSet = new Set(['car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'birds', 'meteor', 'steam', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'floating_lantern']);
+  const showSpawnerSet = new Set(['birds', 'bats', 'meteor', 'ufo', 'shooting_star']);
   const showSpoutSet = new Set(['volcano_spout']);
   const showBladeSet = new Set(['windmill']);
-  const showSpreadSet = new Set(['birds']);
-  const showLooseSet = new Set(['birds']);
+  const showSpreadSet = new Set(['birds', 'bats', 'fish', 'shark', 'squid']);
+  const showLooseSet = new Set(['birds', 'shark', 'ufo', 'shuriken']);
   const showCarrySet = new Set(['bubbles']);
-  const showAngleSet = new Set(['bar', 'gate', 'cross', 'zigzag', 'car', 'volcano_spout', 'hot_air', 'dragon', 'birds', 'ramp', 'cogs', 'timed_gate', 'coffin']);
+  const showAngleSet = new Set(['bar', 'gate', 'cross', 'zigzag', 'car', 'volcano_spout', 'steam_geyser', 'hot_air', 'dragon', 'birds', 'ramp', 'cogs', 'timed_gate', 'coffin', 'meteor', 'bats', 'ufo', 'asteroid_belt', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'trebuchet', 'cannon', 'bow_arrow']);
   const showTreeType = obsType === 'tree';
   const showMotion = showMotionSet.has(obsType);
   const showPath = showPathSet.has(obsType);
@@ -2119,6 +2149,7 @@ function isSolidObstacleType(ob) {
     'foliage', 'solid_circle', 'solid_block', 'ruins_cluster', 'jelly_bumper', 'beach_ball',
     'trampoline', 'target', 'hot_air', 'car_body', 'car', 'cogs_wheel', 'rock_solid',
     'cactus', 'snowman', 'tombstone', 'stalagmite', 'land_mine', 'golden_egg', 'birds',
+    'obelisk', 'barn', 'pumpkin', 'traffic_cone', 'lily_pad', 'gemstone', 'suit_armor', 'donut_ring',
   ]);
   return kinds.has(ob.dynamicType);
 }
@@ -2174,6 +2205,34 @@ function resolveSolidObstacleCollisions(ball, hole) {
           const ny = dy < 0 ? -1 : 1;
           ball.y += ny * oy;
           ball.vy = -ball.vy * 0.68;
+        }
+      }
+      continue;
+    }
+    if (ob.dynamicType === 'donut_ring') {
+      const outer = clamp(Number(ob.collisionRadius) || 18, 8, 70);
+      const inner = clamp(Number(ob.innerRadius) || outer * 0.45, 4, outer - 2);
+      const dx = ball.x - c.x;
+      const dy = ball.y - c.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const minD = Math.max(0.01, inner - BALL_R * 0.7);
+      const maxD = outer + BALL_R;
+      if (d >= minD && d <= maxD) {
+        const nx = dx / d;
+        const ny = dy / d;
+        const toOuter = Math.abs(d - maxD);
+        const toInner = Math.abs(d - minD);
+        if (toOuter <= toInner) {
+          ball.x = c.x + nx * maxD;
+          ball.y = c.y + ny * maxD;
+        } else {
+          ball.x = c.x + nx * minD;
+          ball.y = c.y + ny * minD;
+        }
+        const dot = ball.vx * nx + ball.vy * ny;
+        if (dot < 0) {
+          ball.vx -= 1.62 * dot * nx;
+          ball.vy -= 1.62 * dot * ny;
         }
       }
       continue;
@@ -2381,6 +2440,14 @@ function placePresetObstacle(hole, c) {
     return;
   }
 
+  if (gs.editor.obstacleType === 'candy_cane') {
+    pushSeg(-h * 0.5, h * 0.35, -h * 0.5, -h * 0.25);
+    pushSeg(-h * 0.5, -h * 0.25, h * 0.22, -h * 0.25);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) ob.kind = 'candy_cane';
+    return;
+  }
+
   if (gs.editor.obstacleType === 'flytrap') {
     const w = clamp(Math.max(90, s * 1.1), 70, 220);
     const h2 = clamp(Math.max(56, s * 0.58), 42, 160);
@@ -2445,6 +2512,27 @@ function placePresetObstacle(hole, c) {
     return;
   }
 
+  if (gs.editor.obstacleType === 'steam') {
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'steam',
+      size: s,
+      dynamicType: 'steam_cloud',
+      radius: clamp(s * 0.22, 12, 70),
+      moveSpeed: motionSpeed,
+      pathLen: motionPath,
+      pattern: gs.editor.obstaclePattern || 'drift',
+      baseX: c.x,
+      baseY: c.y,
+      phase: Math.random() * Math.PI * 2,
+      boundToMap,
+    });
+    return;
+  }
+
   if (gs.editor.obstacleType === 'land_mine') {
     pushSeg(-14, 0, 14, 0);
     const ob = hole.obstacles[hole.obstacles.length - 1];
@@ -2475,6 +2563,240 @@ function placePresetObstacle(hole, c) {
       ob.spoutActive = 0;
       ob.effectTimerSec = effectTimerSec;
     }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'steam_geyser') {
+    pushSeg(-12, 0, 12, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.kind = 'steam_geyser';
+      ob.dynamicType = 'volcano_spout';
+      ob.spoutAngleDeg = Number(gs.editor.obstacleAngle) || 0;
+      ob.spoutPower = clamp(motionSpeed, 0.5, 3.5);
+      ob.blastRadius = clamp(motionPath * 0.4, 45, 180);
+      ob.burstEveryMs = Math.round(clamp(1650 - motionSpeed * 140, 700, 2600));
+      ob.burstWindowMs = Math.round(clamp(effectTimerSec * 900, 160, 2200));
+      ob.spoutPhaseMs = Math.random() * 900;
+      ob.spoutActive = 0;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'meteor' || gs.editor.obstacleType === 'asteroid_belt' || gs.editor.obstacleType === 'shooting_star' || gs.editor.obstacleType === 'shuriken' || gs.editor.obstacleType === 'fish' || gs.editor.obstacleType === 'shark' || gs.editor.obstacleType === 'squid' || gs.editor.obstacleType === 'tumbleweed' || gs.editor.obstacleType === 'floating_lantern' || gs.editor.obstacleType === 'ufo' || gs.editor.obstacleType === 'bats') {
+    const kind = gs.editor.obstacleType;
+    const r = clamp(s * (kind === 'ufo' ? 0.22 : kind === 'shark' ? 0.2 : 0.16), 8, 60);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind,
+      size: s,
+      dynamicType:
+        kind === 'asteroid_belt' ? 'asteroid' :
+        kind === 'shooting_star' ? 'shooting_star' :
+        kind === 'shuriken' ? 'shuriken' :
+        kind === 'floating_lantern' ? 'lantern' :
+        kind,
+      collisionRadius: r,
+      color: gs.editor.obstacleColor || '#93a4b8',
+      accent: gs.editor.obstacleAccent || '#d9e5f2',
+      pattern: gs.editor.obstaclePattern || 'line',
+      moveSpeed: motionSpeed,
+      pathLen: motionPath,
+      pathAngleDeg: Number(gs.editor.obstacleAngle) || 0,
+      baseX: c.x,
+      baseY: c.y,
+      phase: Math.random() * Math.PI * 2,
+      count,
+      spawner: !!gs.editor.obstacleSpawner,
+      spread: clamp(Number(gs.editor.obstacleSpread) || 14, 2, 80),
+      homingLoose: clamp(Number(gs.editor.obstacleLoose) || 0.45, 0, 1),
+      effectTimerSec,
+      boundToMap,
+      carrySec: clamp(Number(gs.editor.obstacleCarry) || effectTimerSec, 0.1, 8),
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'trebuchet' || gs.editor.obstacleType === 'cannon') {
+    const rr = clamp(s * 0.22, 10, 54);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: gs.editor.obstacleType,
+      size: s,
+      dynamicType: 'launch_pad',
+      collisionRadius: rr,
+      rampAngleDeg: Number(gs.editor.obstacleAngle) || 0,
+      moveSpeed: motionSpeed,
+      effectTimerSec,
+      color: gs.editor.obstacleColor || '#7a8c9a',
+      accent: gs.editor.obstacleAccent || '#cedae6',
+      pattern: gs.editor.obstaclePattern || 'line',
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'bow_arrow') {
+    pushSeg(-14, 0, 14, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.kind = 'bow_arrow';
+      ob.dynamicType = 'arrow_trap';
+      ob.pathAngleDeg = Number(gs.editor.obstacleAngle) || 0;
+      ob.moveSpeed = motionSpeed;
+      ob.pathLen = motionPath;
+      ob.effectTimerSec = effectTimerSec;
+      ob.shotMs = 0;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'pressure_plate') {
+    const rr = clamp(s * 0.16, 8, 40);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'pressure_plate',
+      size: s,
+      dynamicType: 'pressure_plate',
+      collisionRadius: rr,
+      effectTimerSec,
+      triggerUntilMs: 0,
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'traffic_light') {
+    pushSeg(-h * 0.35, 0, h * 0.35, 0);
+    const ob = hole.obstacles[hole.obstacles.length - 1];
+    if (ob) {
+      ob.kind = 'traffic_light';
+      ob.dynamicType = 'traffic_light';
+      ob.moveSpeed = motionSpeed;
+      ob.openFraction = 0;
+    }
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'umbrella') {
+    const rr = clamp(s * 0.2, 10, 56);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'umbrella',
+      size: s,
+      dynamicType: 'umbrella',
+      collisionRadius: rr,
+      openFraction: 1,
+      lastToggleMs: 0,
+      color: gs.editor.obstacleColor || '#f06076',
+      accent: gs.editor.obstacleAccent || '#ffd7df',
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'lily_pad') {
+    const rr = clamp(s * 0.2, 10, 52);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'lily_pad',
+      size: s,
+      dynamicType: 'lily_pad',
+      collisionRadius: rr,
+      color: gs.editor.obstacleColor || '#5ca85f',
+      accent: gs.editor.obstacleAccent || '#92ce8f',
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'obelisk' || gs.editor.obstacleType === 'barn') {
+    const half = clamp(s * 0.22, 10, 62);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: gs.editor.obstacleType,
+      size: s,
+      dynamicType: gs.editor.obstacleType,
+      blockHalf: half,
+      color: gs.editor.obstacleColor || (gs.editor.obstacleType === 'barn' ? '#b04a36' : '#8c7d66'),
+      accent: gs.editor.obstacleAccent || (gs.editor.obstacleType === 'barn' ? '#d9d9d9' : '#cfbf98'),
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'donut') {
+    const rr = clamp(s * 0.22, 12, 62);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'donut',
+      size: s,
+      dynamicType: 'donut_ring',
+      collisionRadius: rr,
+      innerRadius: rr * 0.48,
+      color: gs.editor.obstacleColor || '#f5b8cb',
+      accent: gs.editor.obstacleAccent || '#ffe6f0',
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'jungle_tree' || gs.editor.obstacleType === 'lollipop_tree') {
+    const rad = clamp(s * 0.3, 14, 70);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: gs.editor.obstacleType,
+      size: s,
+      dynamicType: 'foliage',
+      collisionRadius: rad,
+      leafProfile: Array.from({ length: 14 }, () => 0.72 + Math.random() * 0.34),
+      treeStyle: gs.editor.obstacleType,
+      color: gs.editor.obstacleColor || (gs.editor.obstacleType === 'lollipop_tree' ? '#ff7fb0' : '#2f7f41'),
+      accent: gs.editor.obstacleAccent || (gs.editor.obstacleType === 'lollipop_tree' ? '#fff0f6' : '#6ebf78'),
+      coreRadius: clamp(rad * 0.22, 4, 15),
+      foliageRadius: rad,
+    });
+    return;
+  }
+
+  if (gs.editor.obstacleType === 'pumpkin' || gs.editor.obstacleType === 'suit_armor' || gs.editor.obstacleType === 'traffic_cone' || gs.editor.obstacleType === 'gemstone') {
+    const rr = clamp(s * 0.18, 9, 48);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: gs.editor.obstacleType,
+      size: s,
+      dynamicType: gs.editor.obstacleType,
+      collisionRadius: rr,
+      color: gs.editor.obstacleColor || '#8e9096',
+      accent: gs.editor.obstacleAccent || '#c7ccd2',
+      moveSpeed: motionSpeed,
+      effectTimerSec,
+      phase: Math.random() * Math.PI * 2,
+      vx: 0,
+      vy: 0,
+      boundToMap,
+    });
     return;
   }
 
@@ -3352,7 +3674,7 @@ function getWalls(hole) {
     if (ob.dynamicType === 'bubbles_trap') continue;
     if (ob.dynamicType === 'windmill') continue;
     if (isSolidObstacleType(ob)) continue;
-    if ((ob.dynamicType === 'timed_gate' || ob.dynamicType === 'coffin') && (Number(ob.openFraction) || 0) > 0.6) {
+    if ((ob.dynamicType === 'timed_gate' || ob.dynamicType === 'coffin' || ob.dynamicType === 'traffic_light') && (Number(ob.openFraction) || 0) > 0.6) {
       continue;
     }
     walls.push(ob);
@@ -3544,6 +3866,108 @@ function updateDynamicObstacles(hole, tSec) {
       continue;
     }
 
+    if (['meteor', 'asteroid', 'shooting_star', 'shuriken', 'fish', 'shark', 'squid', 'tumbleweed', 'lantern', 'ufo', 'bats', 'steam_cloud'].includes(ob.dynamicType)) {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
+      const pattern = ob.pattern || 'line';
+      const phase = Number(ob.phase) || 0;
+      const baseA = (Number(ob.pathAngleDeg) || 0) * Math.PI / 180;
+      let cx = Number(ob.baseX) || ob.x1;
+      let cy = Number(ob.baseY) || ob.y1;
+      let a = baseA;
+      if (pattern === 'none') {
+        cx = Number(ob.baseX) || cx;
+        cy = Number(ob.baseY) || cy;
+      } else if (pattern === 'circle') {
+        cx += Math.cos(tSec * speed + phase) * pathLen * 0.34;
+        cy += Math.sin(tSec * speed + phase) * pathLen * 0.34;
+        a = tSec * speed + phase;
+      } else if (pattern === 'erratic') {
+        cx += Math.sin(tSec * speed * 1.7 + phase) * pathLen * 0.32;
+        cy += Math.cos(tSec * speed * 1.1 + phase * 0.8) * pathLen * 0.28;
+        a = baseA + Math.sin(tSec * speed * 1.35 + phase) * 0.75;
+      } else if (pattern === 'homing' && ['shark', 'shuriken', 'ufo'].includes(ob.dynamicType)) {
+        const tx = gs.ball?.x ?? cx;
+        const ty = gs.ball?.y ?? cy;
+        const toA = Math.atan2(ty - cy, tx - cx);
+        const curA = Number.isFinite(Number(ob.homingAngle)) ? Number(ob.homingAngle) : baseA;
+        const delta = Math.atan2(Math.sin(toA - curA), Math.cos(toA - curA));
+        const loose = clamp(Number(ob.homingLoose) || 0.45, 0, 1);
+        const turn = clamp((1 - loose) * 0.2, 0.03, 0.2);
+        const nextA = curA + delta * turn;
+        ob.homingAngle = nextA;
+        const move = speed * (1.3 + (1 - loose) * 1.1);
+        ob.baseX = (Number(ob.baseX) || cx) + Math.cos(nextA) * move;
+        ob.baseY = (Number(ob.baseY) || cy) + Math.sin(nextA) * move;
+        cx = Number(ob.baseX);
+        cy = Number(ob.baseY);
+        a = nextA;
+      } else {
+        const travel = Math.sin(tSec * speed * 1.16 + phase) * (pathLen * 0.5);
+        cx += Math.cos(baseA) * travel;
+        cy += Math.sin(baseA) * travel;
+        a = baseA;
+      }
+
+      if (ob.dynamicType === 'bats' || ob.dynamicType === 'fish' || ob.dynamicType === 'shark' || ob.dynamicType === 'squid') {
+        const half = clamp(Number(ob.wingSpan) || Number(ob.collisionRadius) || (ob.dynamicType === 'shark' ? 22 : 16), 8, 50);
+        const spread = clamp(Number(ob.spread) || 12, 2, 80);
+        const perp = a + Math.PI * 0.5;
+        ob.x1 = cx - Math.cos(perp) * half - Math.cos(a) * spread * 0.45;
+        ob.y1 = cy - Math.sin(perp) * half - Math.sin(a) * spread * 0.45;
+        ob.x2 = cx + Math.cos(perp) * half + Math.cos(a) * spread * 0.45;
+        ob.y2 = cy + Math.sin(perp) * half + Math.sin(a) * spread * 0.45;
+      } else {
+        ob.x1 = cx;
+        ob.y1 = cy;
+        ob.x2 = cx;
+        ob.y2 = cy;
+      }
+
+      if (ob.spawner && pattern === 'line') {
+        const off = ob.x1 < -36 || ob.x1 > CW + 36 || ob.y1 < -36 || ob.y1 > CH + 36;
+        if (off) {
+          const edge = Math.floor(Math.random() * 4);
+          if (edge === 0) { ob.baseX = -24; ob.baseY = 26 + Math.random() * (CH - 52); ob.pathAngleDeg = 0; }
+          else if (edge === 1) { ob.baseX = CW + 24; ob.baseY = 26 + Math.random() * (CH - 52); ob.pathAngleDeg = 180; }
+          else if (edge === 2) { ob.baseX = 26 + Math.random() * (CW - 52); ob.baseY = -24; ob.pathAngleDeg = 90; }
+          else { ob.baseX = 26 + Math.random() * (CW - 52); ob.baseY = CH + 24; ob.pathAngleDeg = -90; }
+          ob.phase = Math.random() * Math.PI * 2;
+        }
+      } else if (ob.boundToMap !== false) {
+        ob.x1 = clamp(ob.x1, 18, CW - 18);
+        ob.y1 = clamp(ob.y1, 18, CH - 18);
+        ob.x2 = clamp(ob.x2, 18, CW - 18);
+        ob.y2 = clamp(ob.y2, 18, CH - 18);
+      }
+      ob.cx = cx;
+      ob.cy = cy;
+      continue;
+    }
+
+    if (ob.dynamicType === 'traffic_light') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      ob.openFraction = (Math.sin(tSec * speed * 1.5 + (Number(ob.phase) || 0)) + 1) * 0.5;
+      continue;
+    }
+
+    if (ob.dynamicType === 'umbrella') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      ob.openFraction = 0.45 + 0.55 * (Math.sin(tSec * speed * 2.2 + (Number(ob.phase) || 0)) + 1) * 0.5;
+      continue;
+    }
+
+    if (ob.dynamicType === 'lily_pad') {
+      const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
+      const by = Number(ob.baseY) || ob.y1;
+      const bx = Number(ob.baseX) || ob.x1;
+      ob.x1 = clamp(bx + Math.sin(tSec * speed + (Number(ob.phase) || 0)) * 8, 18, CW - 18);
+      ob.y1 = clamp(by + Math.cos(tSec * speed * 0.9 + (Number(ob.phase) || 0)) * 6, 18, CH - 18);
+      ob.x2 = ob.x1;
+      ob.y2 = ob.y1;
+      continue;
+    }
+
     if (ob.dynamicType === 'bubbles_trap') {
       const speed = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
       const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
@@ -3715,7 +4139,7 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
       continue;
     }
 
-    if (ob.dynamicType === 'ramp_zone') {
+    if (ob.dynamicType === 'ramp_zone' || ob.dynamicType === 'launch_pad') {
       const c = obstacleCenter(ob);
       const r = clamp(Number(ob.collisionRadius) || 20, 8, 60);
       const d = dist(ball.x, ball.y, c.x, c.y);
@@ -3798,6 +4222,101 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
         ball.vx += Math.cos(a) * flutter;
         ball.vy += Math.sin(a) * flutter;
         ball.moving = true;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'arrow_trap') {
+      const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
+      if (d < BALL_R + 9) {
+        const a = ((Number(ob.pathAngleDeg) || 0) * Math.PI) / 180;
+        const p = 0.11 * clamp(Number(ob.moveSpeed) || 1, 0.2, 5);
+        ball.vx += Math.cos(a) * p;
+        ball.vy += Math.sin(a) * p;
+        ball.moving = true;
+      }
+      continue;
+    }
+
+    if (['bats', 'fish', 'shark', 'squid'].includes(ob.dynamicType)) {
+      const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
+      if (d < BALL_R + 10) {
+        const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1) + Math.PI * 0.5;
+        const p = ob.dynamicType === 'shark' ? 0.14 : 0.1;
+        ball.vx += Math.cos(a) * p;
+        ball.vy += Math.sin(a) * p;
+        ball.moving = true;
+      }
+      continue;
+    }
+
+    if (['meteor', 'asteroid', 'shooting_star', 'shuriken', 'tumbleweed', 'lantern', 'ufo', 'steam_cloud'].includes(ob.dynamicType)) {
+      const c = obstacleCenter(ob);
+      const r = clamp(Number(ob.collisionRadius) || Number(ob.radius) || 15, 8, 70);
+      const d = dist(ball.x, ball.y, c.x, c.y);
+      if (d < r + BALL_R + 1) {
+        const nx = (ball.x - c.x) / Math.max(d, 1);
+        const ny = (ball.y - c.y) / Math.max(d, 1);
+        let p = 0.09;
+        if (ob.dynamicType === 'meteor' || ob.dynamicType === 'shooting_star') p = 0.18;
+        else if (ob.dynamicType === 'ufo' || ob.dynamicType === 'shuriken') p = 0.14;
+        else if (ob.dynamicType === 'steam_cloud') p = 0.06;
+        ball.vx += nx * p;
+        ball.vy += ny * p;
+        if (ob.dynamicType === 'steam_cloud') {
+          ball.vx *= 0.98;
+          ball.vy *= 0.98;
+        }
+        ball.moving = true;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'umbrella') {
+      const c = obstacleCenter(ob);
+      const r = clamp(Number(ob.collisionRadius) || 20, 8, 64) * clamp(Number(ob.openFraction) || 1, 0.2, 1.2);
+      const d = dist(ball.x, ball.y, c.x, c.y);
+      if (d < r + BALL_R) {
+        ball.vx *= 0.94;
+        ball.vy *= 0.94;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'pressure_plate') {
+      const c = obstacleCenter(ob);
+      const r = clamp(Number(ob.collisionRadius) || 16, 8, 50);
+      const d = dist(ball.x, ball.y, c.x, c.y);
+      if (d < r + BALL_R) {
+        ob.triggerUntilMs = now + Math.round(clamp((Number(ob.effectTimerSec) || 1.2) * 1000, 200, 6000));
+      }
+      if (ob.triggerUntilMs && now < ob.triggerUntilMs) {
+        ball.vx *= 0.985;
+        ball.vy *= 0.985;
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'traffic_light') {
+      if ((Number(ob.openFraction) || 0) < 0.35) {
+        const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
+        if (d < BALL_R + 8) {
+          ball.vx *= 0.88;
+          ball.vy *= 0.88;
+        }
+      }
+      continue;
+    }
+
+    if (ob.dynamicType === 'lily_pad') {
+      const c = obstacleCenter(ob);
+      const r = clamp(Number(ob.collisionRadius) || 18, 8, 56);
+      const d = dist(ball.x, ball.y, c.x, c.y);
+      if (d < r + BALL_R + 1) {
+        const nx = (ball.x - c.x) / Math.max(d, 1);
+        const ny = (ball.y - c.y) / Math.max(d, 1);
+        ball.vx += nx * 0.05;
+        ball.vy += ny * 0.05;
       }
       continue;
     }
@@ -5940,7 +6459,172 @@ function drawObstacles(hole) {
     const mx = (ob.x1 + ob.x2) * 0.5;
     const my = (ob.y1 + ob.y2) * 0.5;
     const len = Math.max(16, dist(ob.x1, ob.y1, ob.x2, ob.y2));
-    if (ob.dynamicType === 'foliage') {
+    if (ob.kind === 'donut') {
+      const rr = clamp(Number(ob.collisionRadius) || 18, 8, 70);
+      const ir = clamp(Number(ob.innerRadius) || rr * 0.45, 4, rr - 2);
+      ctx.fillStyle = obstacleColor(ob, '#f5b8cb');
+      ctx.beginPath();
+      ctx.arc(mx, my, rr, 0, Math.PI * 2);
+      ctx.arc(mx, my, ir, 0, Math.PI * 2, true);
+      ctx.fill();
+      ctx.strokeStyle = obstacleAccent(ob, '#ffe6f0');
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(mx, my, rr * 0.86, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (ob.kind === 'obelisk') {
+      const half = clamp(Number(ob.blockHalf) || 16, 8, 70);
+      ctx.fillStyle = obstacleColor(ob, '#8c7d66');
+      ctx.beginPath();
+      ctx.moveTo(mx, my - half);
+      ctx.lineTo(mx + half * 0.56, my - half * 0.25);
+      ctx.lineTo(mx + half * 0.56, my + half * 0.86);
+      ctx.lineTo(mx - half * 0.56, my + half * 0.86);
+      ctx.lineTo(mx - half * 0.56, my - half * 0.25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = obstacleAccent(ob, '#cfbf98');
+      ctx.fillRect(mx - half * 0.16, my - half * 0.54, half * 0.32, half * 0.74);
+    } else if (ob.kind === 'barn') {
+      const half = clamp(Number(ob.blockHalf) || 16, 8, 70);
+      ctx.fillStyle = obstacleColor(ob, '#b04a36');
+      ctx.fillRect(mx - half * 0.68, my - half * 0.2, half * 1.36, half * 1.06);
+      ctx.beginPath();
+      ctx.moveTo(mx - half * 0.78, my - half * 0.2);
+      ctx.lineTo(mx, my - half * 0.95);
+      ctx.lineTo(mx + half * 0.78, my - half * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = obstacleAccent(ob, '#f0e2db');
+      ctx.lineWidth = 1.3;
+      ctx.strokeRect(mx - half * 0.18, my + half * 0.1, half * 0.36, half * 0.58);
+    } else if (ob.kind === 'pumpkin') {
+      const rr = clamp(Number(ob.collisionRadius) || 14, 8, 52);
+      ctx.fillStyle = obstacleColor(ob, '#d57b2a');
+      for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.ellipse(mx + i * rr * 0.34, my, rr * 0.48, rr * 0.58, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#5b7f2e';
+      ctx.fillRect(mx - 2, my - rr * 0.78, 4, 7);
+    } else if (ob.kind === 'traffic_cone') {
+      const rr = clamp(Number(ob.collisionRadius) || 14, 8, 48);
+      ctx.fillStyle = obstacleColor(ob, '#ea7b2e');
+      ctx.beginPath();
+      ctx.moveTo(mx, my - rr);
+      ctx.lineTo(mx + rr * 0.62, my + rr * 0.75);
+      ctx.lineTo(mx - rr * 0.62, my + rr * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(244,244,244,0.9)';
+      ctx.fillRect(mx - rr * 0.36, my - rr * 0.08, rr * 0.72, rr * 0.18);
+    } else if (ob.kind === 'suit_armor') {
+      const rr = clamp(Number(ob.collisionRadius) || 14, 8, 48);
+      ctx.fillStyle = obstacleColor(ob, '#8e9096');
+      roundRect(ctx, mx - rr * 0.52, my - rr * 0.62, rr * 1.04, rr * 1.24, rr * 0.2);
+      ctx.fill();
+      ctx.fillStyle = obstacleAccent(ob, '#c7ccd2');
+      ctx.fillRect(mx - rr * 0.16, my - rr * 0.22, rr * 0.32, rr * 0.7);
+    } else if (ob.kind === 'gemstone') {
+      const rr = clamp(Number(ob.collisionRadius) || 12, 8, 44);
+      ctx.fillStyle = obstacleColor(ob, '#6dc7d8');
+      ctx.beginPath();
+      ctx.moveTo(mx, my - rr);
+      ctx.lineTo(mx + rr * 0.72, my - rr * 0.22);
+      ctx.lineTo(mx + rr * 0.5, my + rr * 0.66);
+      ctx.lineTo(mx - rr * 0.5, my + rr * 0.66);
+      ctx.lineTo(mx - rr * 0.72, my - rr * 0.22);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = obstacleAccent(ob, '#d8fcff');
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    } else if (ob.kind === 'lily_pad') {
+      const rr = clamp(Number(ob.collisionRadius) || 16, 8, 52);
+      ctx.fillStyle = obstacleColor(ob, '#5ca85f');
+      ctx.beginPath();
+      ctx.arc(mx, my, rr, 0.18, Math.PI * 2 - 0.12);
+      ctx.lineTo(mx, my);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = obstacleAccent(ob, '#92ce8f');
+      ctx.beginPath();
+      ctx.arc(mx + rr * 0.16, my - rr * 0.08, rr * 0.34, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (ob.kind === 'umbrella') {
+      const rr = clamp(Number(ob.collisionRadius) || 16, 8, 56) * clamp(Number(ob.openFraction) || 1, 0.2, 1.2);
+      ctx.fillStyle = obstacleColor(ob, '#f06076');
+      ctx.beginPath();
+      ctx.arc(mx, my, rr, Math.PI, Math.PI * 2);
+      ctx.lineTo(mx + rr, my + 2);
+      ctx.lineTo(mx - rr, my + 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = obstacleAccent(ob, '#ffd7df');
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(mx, my + rr * 0.95);
+      ctx.stroke();
+    } else if (ob.kind === 'pressure_plate') {
+      const rr = clamp(Number(ob.collisionRadius) || 12, 8, 40);
+      const active = ob.triggerUntilMs && performance.now() < ob.triggerUntilMs;
+      ctx.fillStyle = active ? '#e0be66' : '#8f7b56';
+      roundRect(ctx, mx - rr, my - rr * 0.26, rr * 2, rr * 0.52, 4);
+      ctx.fill();
+    } else if (ob.kind === 'traffic_light') {
+      const r = clamp(len * 0.08, 2, 5);
+      const green = (Number(ob.openFraction) || 0) > 0.6;
+      ctx.fillStyle = green ? '#4ec46f' : '#cc5353';
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (['meteor', 'asteroid_belt', 'shooting_star', 'shuriken', 'ufo', 'floating_lantern', 'steam', 'bats', 'fish', 'shark', 'squid', 'tumbleweed'].includes(ob.kind)) {
+      const rr = clamp(Number(ob.collisionRadius) || Number(ob.radius) || 12, 6, 58);
+      if (ob.kind === 'ufo') {
+        ctx.fillStyle = obstacleColor(ob, '#93a4b8');
+        ctx.beginPath();
+        ctx.ellipse(mx, my, rr, rr * 0.46, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = obstacleAccent(ob, '#d9e5f2');
+        ctx.beginPath();
+        ctx.ellipse(mx, my - rr * 0.24, rr * 0.45, rr * 0.28, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (ob.kind === 'shuriken') {
+        ctx.fillStyle = obstacleColor(ob, '#9ba7ba');
+        for (let i = 0; i < 4; i++) {
+          const a = (performance.now() * 0.01 + i * Math.PI * 0.5);
+          ctx.beginPath();
+          ctx.moveTo(mx, my);
+          ctx.lineTo(mx + Math.cos(a) * rr, my + Math.sin(a) * rr);
+          ctx.lineTo(mx + Math.cos(a + 0.52) * rr * 0.44, my + Math.sin(a + 0.52) * rr * 0.44);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else if (ob.kind === 'fish' || ob.kind === 'shark' || ob.kind === 'squid' || ob.kind === 'bats') {
+        ctx.strokeStyle = obstacleColor(ob, ob.kind === 'bats' ? '#5b5666' : '#79b0cc');
+        ctx.lineWidth = ob.kind === 'shark' ? 5 : 4;
+        ctx.beginPath();
+        ctx.moveTo(ob.x1, ob.y1);
+        ctx.lineTo(ob.x2, ob.y2);
+        ctx.stroke();
+      } else if (ob.kind === 'floating_lantern') {
+        ctx.fillStyle = obstacleColor(ob, '#f2d9a3');
+        roundRect(ctx, mx - rr * 0.46, my - rr * 0.6, rr * 0.92, rr * 1.2, 4);
+        ctx.fill();
+      } else if (ob.kind === 'steam') {
+        ctx.fillStyle = 'rgba(226,236,243,0.45)';
+        ctx.beginPath();
+        ctx.arc(mx, my, rr, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = obstacleColor(ob, '#9e8670');
+        ctx.beginPath();
+        ctx.arc(mx, my, rr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (ob.dynamicType === 'foliage') {
       const rr = clamp(Number(ob.foliageRadius) || Number(ob.collisionRadius) || 18, 8, 56);
       const style = ob.treeStyle || ob.kind;
       if (style === 'pine') {
