@@ -2196,7 +2196,7 @@ function resolveSolidObstacleCollisions(ball, hole) {
       const push = 0.46 + spd * 0.16;
       ball.vx += (dx / d) * push;
       ball.vy += (dy / d) * push;
-      ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.55) * 220 * (0.9 + spd * 0.22), 80, 920)));
+      ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.55) * 20 * (0.85 + spd * 0.24), 14, 95)));
       ball.moving = true;
     } else if (ob.dynamicType === 'beach_ball') {
       ob.vx = (ob.vx || 0) + ball.vx * 0.18;
@@ -3475,11 +3475,17 @@ function updateDynamicObstacles(hole, tSec) {
         cy += Math.cos(tSec * speed * 1.1 + phase * 0.8) * pathLen * 0.28;
         a += Math.sin(tSec * speed * 1.5 + phase) * 0.6;
       } else if (pattern === 'line') {
-        const move = speed * 1.9;
-        ob.baseX = (Number(ob.baseX) || cx) + Math.cos(baseA) * move;
-        ob.baseY = (Number(ob.baseY) || cy) + Math.sin(baseA) * move;
-        cx = Number(ob.baseX);
-        cy = Number(ob.baseY);
+        if (ob.spawner) {
+          const move = speed * 1.9;
+          ob.baseX = (Number(ob.baseX) || cx) + Math.cos(baseA) * move;
+          ob.baseY = (Number(ob.baseY) || cy) + Math.sin(baseA) * move;
+          cx = Number(ob.baseX);
+          cy = Number(ob.baseY);
+        } else {
+          const travel = Math.sin(tSec * speed * 1.05 + phase) * pathLen * 0.5;
+          cx += Math.cos(baseA) * travel;
+          cy += Math.sin(baseA) * travel;
+        }
         a = baseA;
       } else if (pattern === 'drift') {
         cx += Math.sin(tSec * speed * 0.42 + phase) * pathLen * 0.26;
@@ -3514,7 +3520,7 @@ function updateDynamicObstacles(hole, tSec) {
       ob.y1 = cy - Math.sin(perp) * wing * vSpread - Math.sin(a) * spread * 0.5;
       ob.x2 = cx + Math.cos(perp) * wing * vSpread + Math.cos(a) * spread * 0.5;
       ob.y2 = cy + Math.sin(perp) * wing * vSpread + Math.sin(a) * spread * 0.5;
-      if (ob.spawner) {
+      if (ob.spawner && pattern === 'line') {
         const offLeft = ob.x1 < -36 && ob.x2 < -36;
         const offRight = ob.x1 > CW + 36 && ob.x2 > CW + 36;
         const offTop = ob.y1 < -36 && ob.y2 < -36;
@@ -3657,9 +3663,11 @@ function updateDynamicObstacles(hole, tSec) {
 
 function applyDynamicObstacleEffects(ball, hole, tSec) {
   if (!ball || !hole || !Array.isArray(hole.obstacles)) return;
+  if (ball.airMs && ball.airMs > 0) return;
   const now = performance.now();
   for (const ob of hole.obstacles) {
     if (ob.dynamicType === 'windmill') {
+      if (ob.lastHitMs && now - ob.lastHitMs < 95) continue;
       const cx = clamp(Number(ob.pivotX) || obstacleCenter(ob).x, 18, CW - 18);
       const cy = clamp(Number(ob.pivotY) || obstacleCenter(ob).y, 18, CH - 18);
       const arm = clamp(Number(ob.armLen) || 40, 10, 180);
@@ -3700,7 +3708,8 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
         ball.vy += Math.sin(tangA) * push;
         ball.vx += hitNx * 0.08;
         ball.vy += hitNy * 0.08;
-        ball.airMs = Math.max(ball.airMs || 0, 7);
+        ball.airMs = Math.max(ball.airMs || 0, 3);
+        ob.lastHitMs = now;
         ball.moving = true;
       }
       continue;
@@ -3717,7 +3726,7 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
         const launch = Math.max(0.8, pre + p);
         ball.vx = Math.cos(a) * launch;
         ball.vy = Math.sin(a) * launch;
-        ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.5) * 240 * (0.85 + launch * 0.24), 90, 950)));
+        ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.5) * 26 * (0.6 + launch * 0.32), 16, 110)));
         ball.moving = true;
       }
       continue;
@@ -3918,9 +3927,9 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
         const coneGate = Math.cos((widthDeg * Math.PI / 180) * 0.5);
         if (toward > coneGate || d < 18) {
           const power = clamp(Number(ob.spoutPower) || 1.6, 0.7, 4.5);
-          const pulseMul = shape === 'pulse' ? (0.68 + (Number(ob.spoutPulse) || 0) * 0.62) : 1;
-          const spreadMul = shape === 'cone' ? 0.84 : shape === 'jet' ? 1.08 : 0.96;
-          const strength = power * (1 - d / radius) * 0.32 * pulseMul * spreadMul;
+          const pulseMul = shape === 'pulse' ? (0.45 + (Number(ob.spoutPulse) || 0) * 1.2) : 1;
+          const spreadMul = shape === 'cone' ? 0.7 : shape === 'jet' ? 1.18 : 0.9;
+          const strength = power * (1 - d / radius) * 0.36 * pulseMul * spreadMul;
           ball.vx += dirX * strength;
           ball.vy += dirY * strength;
           ball.moving = true;
@@ -3997,7 +4006,7 @@ function physicsTick(ball, hole) {
   ball.vy *= fr;
 
   if (ball.airMs && ball.airMs > 0) {
-    ball.airMs = Math.max(0, ball.airMs - (0.9 + Math.min(1.6, Math.hypot(ball.vx, ball.vy) * 0.08)));
+    ball.airMs = Math.max(0, ball.airMs - (1.7 + Math.min(2.8, Math.hypot(ball.vx, ball.vy) * 0.16)));
   }
 
   // Resolve wall collisions when grounded
@@ -5449,7 +5458,7 @@ function drawBall(ball, sinkT) {
   if (gs.hole && isBallUnderFoliage(ball, gs.hole) && gs.state === State.PLAYING) return;
   const { x, y } = ball;
   const air = clamp(Number(ball.airMs) || 0, 0, 900);
-  const airN = air > 0 ? Math.min(1, air / 230) : 0;
+  const airN = air > 0 ? Math.min(1, air / 70) : 0;
   const liftY = airN * 4;
   ctx.save();
   if (sinkT > 0) {
@@ -6554,8 +6563,9 @@ function drawObstacles(hole) {
       const flock = clamp(Math.round(Number(ob.count) || 3), 1, 8);
       for (let i = 0; i < flock; i++) {
         const k = i - (flock - 1) * 0.5;
-        const bx = k * (4 + spread * 0.35);
-        const by = (ob.pattern === 'v' ? Math.abs(k) * 2.6 : ob.pattern === 'line' ? 0 : Math.sin(i * 1.4) * 2.2);
+        const seed = (Number(ob.phase) || 0) + i * 1.73;
+        const bx = k * (3 + spread * 0.28) + Math.sin(seed) * spread * 0.18;
+        const by = (ob.pattern === 'v' ? Math.abs(k) * 2.6 : ob.pattern === 'line' ? 0 : Math.sin(i * 1.4) * 2.2) + Math.cos(seed * 1.35) * spread * 0.22;
         const flap = Math.sin(performance.now() / 140 + i * 0.8 + (Number(ob.phase) || 0)) * 1.8;
         ctx.beginPath();
         ctx.moveTo(bx - 4.5, by + flap * 0.2);
@@ -8506,7 +8516,7 @@ function gameLoop() {
     const ball = gs.ball;
     const hole = gs.hole;
     if (ball.airMs && ball.airMs > 0 && !ball.moving) {
-      ball.airMs = Math.max(0, ball.airMs - 1.2);
+      ball.airMs = Math.max(0, ball.airMs - 2.4);
     }
     const underNow = !!(hole && isBallUnderFoliage(ball, hole));
     if (underNow !== !!gs.wasUnderFoliage) {
@@ -8534,7 +8544,7 @@ function gameLoop() {
       }
 
       // Cup check (only when outside water)
-      if (!inWaterNow && checkCup()) {
+      if (!inWaterNow && (!ball.airMs || ball.airMs <= 0) && checkCup()) {
         triggerSink();
       }
 
