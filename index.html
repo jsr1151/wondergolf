@@ -325,6 +325,45 @@
     .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 6px 0 14px; }
     .leg-item { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; color: var(--text-dim); }
     .leg-dot  { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+    /* Course directory */
+    .dir-meta {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .dir-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      margin: 10px 0 14px;
+      max-height: 48vh;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+    .dir-card {
+      border: 1px solid var(--ui-border);
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: left;
+    }
+    .dir-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+    .dir-sub {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+    .dir-card .btn {
+      margin: 0;
+      padding: 9px 12px;
+      font-size: 0.86rem;
+    }
   </style>
 </head>
 <body>
@@ -345,8 +384,22 @@
         <div class="leg-item"><div class="leg-dot" style="background:var(--slick-color)"></div>Slick (−friction)</div>
       </div>
       <button class="btn btn-primary"   id="btnPlay">🏌️ Play Today's Round</button>
+      <button class="btn btn-secondary" id="btnDirectory">📚 Course Directory</button>
       <button class="btn btn-secondary" id="btnEditor">🛠 Course Editor</button>
       <button class="btn btn-secondary" id="btnProfile" aria-label="Profile and Achievements">👤 Profile &amp; Achievements</button>
+    </div>
+  </div>
+
+  <!-- ── COURSE DIRECTORY ──────────────────────────────────── -->
+  <div id="scrDirectory" class="screen gone">
+    <div class="panel panel-wide">
+      <div class="panel-heading">📚 Course Directory</div>
+      <div class="panel-subtitle" style="margin-bottom:8px">
+        One complete 9-hole course for every theme.
+      </div>
+      <div id="directoryCount" class="dir-meta"></div>
+      <div id="directoryList" class="dir-grid"></div>
+      <button class="btn btn-secondary" id="btnBackDirectory">← Back</button>
     </div>
   </div>
 
@@ -1113,6 +1166,7 @@ const ACHIEVEMENTS = [
 // ══════════════════════════════════════════════════════════════
 const State = {
   MENU:          'menu',
+  DIRECTORY:     'directory',
   PLAYING:       'playing',
   SINKING:       'sinking',
   HOLE_COMPLETE: 'hole_complete',
@@ -1437,6 +1491,64 @@ function formatThemeWithEmoji(theme) {
   const key = String(theme || 'generic');
   const emoji = THEME_EMOJIS[key] || THEME_EMOJIS.generic;
   return `${emoji} ${formatThemeLabel(key)}`;
+}
+
+function hashStringToSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function cloneThemedHole(baseHole, themeName, holeNumber) {
+  const hole = JSON.parse(JSON.stringify(baseHole));
+  hole.theme = themeName;
+  hole.name = `${formatThemeLabel(themeName)} ${holeNumber}: ${baseHole.name}`;
+  return hole;
+}
+
+function buildThemeCourse(themeName) {
+  const seed = hashStringToSeed(`wondergolf:${themeName}`);
+  const rng = mulberry32(seed);
+  const indices = Array.from({ length: HOLE_POOL.length }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  const chosen = indices.slice(0, HOLES_PER_ROUND);
+  return {
+    id: `theme_course_${themeName.replace(/\s+/g, '_')}`,
+    theme: themeName,
+    name: `${formatThemeWithEmoji(themeName)} Classic 9`,
+    holes: chosen.map((poolIdx, i) => cloneThemedHole(HOLE_POOL[poolIdx], themeName, i + 1)),
+  };
+}
+
+const BUILTIN_THEME_COURSES = THEME_CATALOG.map(buildThemeCourse);
+const BUILTIN_THEME_COURSE_MAP = Object.fromEntries(BUILTIN_THEME_COURSES.map(course => [course.id, course]));
+
+function getBuiltinThemeCourseById(courseId) {
+  return BUILTIN_THEME_COURSE_MAP[String(courseId)] || null;
+}
+
+function renderCourseDirectory() {
+  const countEl = document.getElementById('directoryCount');
+  const listEl = document.getElementById('directoryList');
+  if (!countEl || !listEl) return;
+  countEl.textContent = `${BUILTIN_THEME_COURSES.length} themed courses ready to play.`;
+  listEl.innerHTML = '';
+
+  BUILTIN_THEME_COURSES.forEach(course => {
+    const card = document.createElement('div');
+    card.className = 'dir-card';
+    card.innerHTML = `
+      <div class="dir-title">${formatThemeWithEmoji(course.theme)}</div>
+      <div class="dir-sub">${course.holes.length} holes</div>
+      <button class="btn btn-primary" data-course-id="${course.id}">Play Course</button>`;
+    listEl.appendChild(card);
+  });
 }
 
 function filteredElements(catalog, elementTheme) {
@@ -8875,6 +8987,7 @@ function applyOutOfBoundsPenalty() {
 // ══════════════════════════════════════════════════════════════
 const screens = {
   menu:     document.getElementById('scrMenu'),
+  directory: document.getElementById('scrDirectory'),
   holeComplete: document.getElementById('scrHoleComplete'),
   scorecard: document.getElementById('scrScorecard'),
   profile:  document.getElementById('scrProfile'),
@@ -9028,6 +9141,12 @@ function showEditorScreen() {
   showScreen('editor');
 }
 
+function showCourseDirectoryScreen() {
+  renderCourseDirectory();
+  gs.state = State.DIRECTORY;
+  showScreen('directory');
+}
+
 function startEditorHoleTest() {
   const hole = getActiveEditorHole();
   if (!hole) return;
@@ -9054,8 +9173,25 @@ document.getElementById('btnPlay').addEventListener('click', () => {
   startRound();
 });
 
+document.getElementById('btnDirectory').addEventListener('click', () => {
+  showCourseDirectoryScreen();
+});
+
 document.getElementById('btnEditor').addEventListener('click', () => {
   showEditorScreen();
+});
+
+document.getElementById('btnBackDirectory').addEventListener('click', () => {
+  gs.state = State.MENU;
+  showScreen('menu');
+});
+
+document.getElementById('directoryList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-course-id]');
+  if (!btn) return;
+  const course = getBuiltinThemeCourseById(btn.dataset.courseId);
+  if (!course) return;
+  startCustomCourseRound(course);
 });
 
 document.getElementById('selEditorCourse').addEventListener('change', (e) => {
