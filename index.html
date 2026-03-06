@@ -555,11 +555,13 @@
       </div>
       <label class="editor-build-block editor-obstacle-block" id="obsCtrlPattern" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Movement Pattern
         <select id="selObstaclePattern" style="width:100%;margin-top:4px">
+          <option value="none">None</option>
           <option value="line">Line</option>
           <option value="circle">Circle</option>
           <option value="erratic">Erratic</option>
           <option value="v">Flying V</option>
           <option value="drift">Drift</option>
+          <option value="homing">Homing</option>
         </select>
       </label>
       <div class="editor-build-block editor-obstacle-block" id="obsCtrlAdvanced" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;text-align:left">
@@ -603,6 +605,15 @@
             <option value="propeller">Propeller</option>
             <option value="cog">Cog</option>
           </select>
+        </label>
+        <label class="editor-obstacle-block" id="obsCtrlSpread" style="font-size:0.78rem;color:var(--text-dim)">Flock Spread
+          <input id="inpObstacleSpread" type="number" min="2" max="80" step="1" style="width:100%;margin-top:4px">
+        </label>
+        <label class="editor-obstacle-block" id="obsCtrlLoose" style="font-size:0.78rem;color:var(--text-dim)">Homing Loose
+          <input id="inpObstacleLoose" type="number" min="0" max="1" step="0.05" style="width:100%;margin-top:4px">
+        </label>
+        <label class="editor-obstacle-block" id="obsCtrlCarry" style="font-size:0.78rem;color:var(--text-dim)">Bubble Carry (s)
+          <input id="inpObstacleCarry" type="number" min="0.1" max="8" step="0.1" style="width:100%;margin-top:4px">
         </label>
       </div>
       <div class="editor-build-block" style="font-size:0.76rem;color:var(--text-dim);line-height:1.45;margin-bottom:10px;text-align:left">
@@ -1149,6 +1160,9 @@ let gs = {               // game state object
     obstacleSpoutShape: 'jet',
     obstacleBladeThickness: 6,
     obstacleBladeShape: 'windmill',
+    obstacleSpread: 14,
+    obstacleLoose: 0.45,
+    obstacleCarry: 0.9,
     treeType: 'random',
     curveSmoothness: 3,
     curveSamples: 9,
@@ -1474,6 +1488,9 @@ function refreshEditorControls() {
   const selObsSpoutShape = document.getElementById('selObstacleSpoutShape');
   const inpObsBladeThickness = document.getElementById('inpObstacleBladeThickness');
   const selObsBladeShape = document.getElementById('selObstacleBladeShape');
+  const inpObsSpread = document.getElementById('inpObstacleSpread');
+  const inpObsLoose = document.getElementById('inpObstacleLoose');
+  const inpObsCarry = document.getElementById('inpObstacleCarry');
   const obsCtrlAngle = document.getElementById('obsCtrlAngle');
   const obsCtrlColors = document.getElementById('obsCtrlColors');
   const obsCtrlMotion = document.getElementById('obsCtrlMotion');
@@ -1488,6 +1505,9 @@ function refreshEditorControls() {
   const obsCtrlSpoutShape = document.getElementById('obsCtrlSpoutShape');
   const obsCtrlBladeThickness = document.getElementById('obsCtrlBladeThickness');
   const obsCtrlBladeShape = document.getElementById('obsCtrlBladeShape');
+  const obsCtrlSpread = document.getElementById('obsCtrlSpread');
+  const obsCtrlLoose = document.getElementById('obsCtrlLoose');
+  const obsCtrlCarry = document.getElementById('obsCtrlCarry');
   const contextChips = document.getElementById('editorContextChips');
   const summary = document.getElementById('editorSummary');
 
@@ -1652,6 +1672,8 @@ function refreshEditorControls() {
       gs.editor.obstaclePath = clamp(Number(selectedObs.pathLen) || gs.editor.obstaclePath, 20, 420);
       gs.editor.obstacleAngle = Math.round(Number(selectedObs.pathAngleDeg) || gs.editor.obstacleAngle);
       gs.editor.obstacleSpawner = !!selectedObs.spawner;
+      gs.editor.obstacleSpread = clamp(Number(selectedObs.spread) || gs.editor.obstacleSpread || 14, 2, 80);
+      gs.editor.obstacleLoose = clamp(Number(selectedObs.homingLoose) || gs.editor.obstacleLoose || 0.45, 0, 1);
     } else if (selectedObs.dynamicType === 'windmill') {
       gs.editor.obstacleCount = clamp(Number(selectedObs.blades) || gs.editor.obstacleCount || 2, 1, 8);
       gs.editor.obstacleTimer = clamp(Number(selectedObs.swingSec) || gs.editor.obstacleTimer || 1.2, 0.1, 8);
@@ -1674,6 +1696,7 @@ function refreshEditorControls() {
     gs.editor.obstacleSpawner = !!selectedObs.spawner;
     gs.editor.obstacleSpoutWidth = clamp(Number(selectedObs.spoutWidthDeg) || gs.editor.obstacleSpoutWidth || 24, 4, 90);
     gs.editor.obstacleSpoutShape = ['jet', 'cone', 'pulse'].includes(selectedObs.spoutShape) ? selectedObs.spoutShape : (gs.editor.obstacleSpoutShape || 'jet');
+    gs.editor.obstacleCarry = clamp(Number(selectedObs.carrySec) || gs.editor.obstacleCarry || 0.9, 0.1, 8);
     if (selectedObs.treeStyle && ['deciduous', 'pine', 'palm'].includes(selectedObs.treeStyle)) {
       gs.editor.treeType = selectedObs.treeStyle;
     }
@@ -1685,7 +1708,7 @@ function refreshEditorControls() {
   inpObsPath.value = String(gs.editor.obstaclePath);
   inpObsColor.value = gs.editor.obstacleColor || '#3a6a45';
   inpObsAccent.value = gs.editor.obstacleAccent || '#4a8455';
-  selObsPattern.value = ['line', 'circle', 'erratic', 'v', 'drift'].includes(gs.editor.obstaclePattern) ? gs.editor.obstaclePattern : 'line';
+  selObsPattern.value = ['none', 'line', 'circle', 'erratic', 'v', 'drift', 'homing'].includes(gs.editor.obstaclePattern) ? gs.editor.obstaclePattern : 'line';
   selTreeType.value = ['random', 'deciduous', 'pine', 'palm'].includes(gs.editor.treeType) ? gs.editor.treeType : 'random';
   inpObsTimer.value = String(gs.editor.obstacleTimer || 1.2);
   inpObsCount.value = String(gs.editor.obstacleCount || 2);
@@ -1695,6 +1718,9 @@ function refreshEditorControls() {
   selObsSpoutShape.value = ['jet', 'cone', 'pulse'].includes(gs.editor.obstacleSpoutShape) ? gs.editor.obstacleSpoutShape : 'jet';
   inpObsBladeThickness.value = String(gs.editor.obstacleBladeThickness || 6);
   selObsBladeShape.value = ['line', 'windmill', 'propeller', 'cog'].includes(gs.editor.obstacleBladeShape) ? gs.editor.obstacleBladeShape : 'windmill';
+  inpObsSpread.value = String(gs.editor.obstacleSpread || 14);
+  inpObsLoose.value = String(gs.editor.obstacleLoose ?? 0.45);
+  inpObsCarry.value = String(gs.editor.obstacleCarry || 0.9);
 
   const obsType = gs.editor.obstacleType;
   const showMotionSet = new Set(['windmill', 'car', 'cogs', 'bubbles', 'beach_ball', 'snowman', 'cactus', 'planet', 'birds', 'hot_air', 'dragon', 'dinosaur', 'golden_egg', 'volcano_spout', 'ramp', 'jelly_bumper', 'target', 'trampoline', 'land_mine']);
@@ -1706,6 +1732,9 @@ function refreshEditorControls() {
   const showSpawnerSet = new Set(['birds']);
   const showSpoutSet = new Set(['volcano_spout']);
   const showBladeSet = new Set(['windmill']);
+  const showSpreadSet = new Set(['birds']);
+  const showLooseSet = new Set(['birds']);
+  const showCarrySet = new Set(['bubbles']);
   const showAngleSet = new Set(['bar', 'gate', 'cross', 'zigzag', 'car', 'volcano_spout', 'hot_air', 'dragon', 'birds', 'ramp', 'cogs', 'timed_gate', 'coffin']);
   const showTreeType = obsType === 'tree';
   const showMotion = showMotionSet.has(obsType);
@@ -1717,7 +1746,10 @@ function refreshEditorControls() {
   const showSpawner = showSpawnerSet.has(obsType);
   const showSpout = showSpoutSet.has(obsType);
   const showBlade = showBladeSet.has(obsType);
-  const showAdvanced = showTreeType || showTimer || showCount || showBounded || showSpawner || showSpout || showBlade;
+  const showSpread = showSpreadSet.has(obsType);
+  const showLoose = showLooseSet.has(obsType);
+  const showCarry = showCarrySet.has(obsType);
+  const showAdvanced = showTreeType || showTimer || showCount || showBounded || showSpawner || showSpout || showBlade || showSpread || showLoose || showCarry;
 
   if (obsCtrlAngle) obsCtrlAngle.classList.toggle('gone', !showAngleSet.has(obsType));
   if (obsCtrlColors) obsCtrlColors.classList.toggle('gone', false);
@@ -1733,6 +1765,9 @@ function refreshEditorControls() {
   if (obsCtrlSpoutShape) obsCtrlSpoutShape.classList.toggle('gone', !showSpout);
   if (obsCtrlBladeThickness) obsCtrlBladeThickness.classList.toggle('gone', !showBlade);
   if (obsCtrlBladeShape) obsCtrlBladeShape.classList.toggle('gone', !showBlade);
+  if (obsCtrlSpread) obsCtrlSpread.classList.toggle('gone', !showSpread);
+  if (obsCtrlLoose) obsCtrlLoose.classList.toggle('gone', !showLoose || gs.editor.obstaclePattern !== 'homing');
+  if (obsCtrlCarry) obsCtrlCarry.classList.toggle('gone', !showCarry);
   if (inpObsSpeed && inpObsSpeed.parentElement) inpObsSpeed.parentElement.classList.toggle('gone', !showMotion);
   if (inpObsPath && inpObsPath.parentElement) inpObsPath.parentElement.classList.toggle('gone', !showPath);
 
@@ -1795,6 +1830,9 @@ function refreshEditorControls() {
   if (obsCtrlSpoutShape) obsCtrlSpoutShape.classList.toggle('gone', !showSpout);
   if (obsCtrlBladeThickness) obsCtrlBladeThickness.classList.toggle('gone', !showBlade);
   if (obsCtrlBladeShape) obsCtrlBladeShape.classList.toggle('gone', !showBlade);
+  if (obsCtrlSpread) obsCtrlSpread.classList.toggle('gone', !showSpread);
+  if (obsCtrlLoose) obsCtrlLoose.classList.toggle('gone', !showLoose || gs.editor.obstaclePattern !== 'homing');
+  if (obsCtrlCarry) obsCtrlCarry.classList.toggle('gone', !showCarry);
   if (inpObsSpeed && inpObsSpeed.parentElement) inpObsSpeed.parentElement.classList.toggle('gone', !showMotion);
   if (inpObsPath && inpObsPath.parentElement) inpObsPath.parentElement.classList.toggle('gone', !showPath);
 }
@@ -2154,10 +2192,11 @@ function resolveSolidObstacleCollisions(ball, hole) {
       const dx = ball.x - c.x;
       const dy = ball.y - c.y;
       const d = Math.hypot(dx, dy) || 1;
-      const push = 0.46 + Math.max(0.3, Math.hypot(ball.vx, ball.vy)) * 0.16;
+      const spd = Math.max(0.3, Math.hypot(ball.vx, ball.vy));
+      const push = 0.46 + spd * 0.16;
       ball.vx += (dx / d) * push;
       ball.vy += (dy / d) * push;
-      ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.55) * 250, 80, 700)));
+      ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.55) * 220 * (0.9 + spd * 0.22), 80, 920)));
       ball.moving = true;
     } else if (ob.dynamicType === 'beach_ball') {
       ob.vx = (ob.vx || 0) + ball.vx * 0.18;
@@ -2241,32 +2280,27 @@ function placePresetObstacle(hole, c) {
   };
 
   if (gs.editor.obstacleType === 'windmill') {
-    const makeSpoke = (baseAngle, phase)=>{
-      hole.obstacles.push({
-        x1: c.x,
-        y1: c.y,
-        x2: c.x,
-        y2: c.y,
-        kind: 'windmill',
-        size: s,
-        dynamicType: 'windmill',
-        pivotX: c.x,
-        pivotY: c.y,
-        armLen: s * 0.42,
-        blades: count,
-        swingSec: effectTimerSec,
-        bladeThickness: clamp(Math.round(Number(gs.editor.obstacleBladeThickness) || 6), 2, 20),
-        bladeShape: ['line', 'windmill', 'propeller', 'cog'].includes(gs.editor.obstacleBladeShape) ? gs.editor.obstacleBladeShape : 'windmill',
-        baseAngle,
-        phase,
-        moveSpeed: motionSpeed,
-        color: gs.editor.obstacleColor || '#cfd5db',
-        accent: gs.editor.obstacleAccent || '#ffffff',
-      });
-    };
-    for (let i = 0; i < count; i++) {
-      makeSpoke((i / count) * Math.PI * 2, 0);
-    }
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'windmill',
+      size: s,
+      dynamicType: 'windmill',
+      pivotX: c.x,
+      pivotY: c.y,
+      armLen: s * 0.42,
+      blades: count,
+      swingSec: effectTimerSec,
+      bladeThickness: clamp(Math.round(Number(gs.editor.obstacleBladeThickness) || 6), 2, 20),
+      bladeShape: ['line', 'windmill', 'propeller', 'cog'].includes(gs.editor.obstacleBladeShape) ? gs.editor.obstacleBladeShape : 'windmill',
+      baseAngle: angle,
+      phase: Math.random() * Math.PI * 2,
+      moveSpeed: motionSpeed,
+      color: gs.editor.obstacleColor || '#cfd5db',
+      accent: gs.editor.obstacleAccent || '#ffffff',
+    });
     return;
   }
 
@@ -2406,6 +2440,7 @@ function placePresetObstacle(hole, c) {
       pathLen: motionPath,
       phase: Math.random() * Math.PI * 2,
       boundToMap,
+      carrySec: clamp(Number(gs.editor.obstacleCarry) || effectTimerSec, 0.1, 8),
     });
     return;
   }
@@ -2634,6 +2669,8 @@ function placePresetObstacle(hole, c) {
       moveSpeed: motionSpeed,
       wingSpan: Math.max(10, s * 0.14),
       count,
+      spread: clamp(Number(gs.editor.obstacleSpread) || 14, 2, 80),
+      homingLoose: clamp(Number(gs.editor.obstacleLoose) || 0.45, 0, 1),
       spawner: !!gs.editor.obstacleSpawner,
       phase: Math.random() * Math.PI * 2,
       boundToMap,
@@ -3313,6 +3350,7 @@ function getWalls(hole) {
   }
   for (const ob of hole.obstacles) {
     if (ob.dynamicType === 'bubbles_trap') continue;
+    if (ob.dynamicType === 'windmill') continue;
     if (isSolidObstacleType(ob)) continue;
     if ((ob.dynamicType === 'timed_gate' || ob.dynamicType === 'coffin') && (Number(ob.openFraction) || 0) > 0.6) {
       continue;
@@ -3333,6 +3371,7 @@ function updateDynamicObstacles(hole, tSec) {
       const arm = clamp(Number(ob.armLen) || 40, 10, 180);
       const cx = clamp(Number(ob.pivotX) || 0, 18, CW - 18);
       const cy = clamp(Number(ob.pivotY) || 0, 18, CH - 18);
+      ob.spinAngle = a;
       ob.x1 = clamp(cx - Math.cos(a) * arm, 18, CW - 18);
       ob.y1 = clamp(cy - Math.sin(a) * arm, 18, CH - 18);
       ob.x2 = clamp(cx + Math.cos(a) * arm, 18, CW - 18);
@@ -3347,7 +3386,11 @@ function updateDynamicObstacles(hole, tSec) {
       let a = baseA;
       let cx = Number(ob.baseX) || 0;
       let cy = Number(ob.baseY) || 0;
-      if (pattern === 'circle') {
+      if (pattern === 'none') {
+        cx = Number(ob.baseX) || cx;
+        cy = Number(ob.baseY) || cy;
+        a = baseA;
+      } else if (pattern === 'circle') {
         cx += Math.cos(tSec * speed + (Number(ob.phase) || 0)) * pathLen * 0.35;
         cy += Math.sin(tSec * speed + (Number(ob.phase) || 0)) * pathLen * 0.35;
         a = tSec * speed + (Number(ob.phase) || 0);
@@ -3378,7 +3421,10 @@ function updateDynamicObstacles(hole, tSec) {
       const by = Number(ob.baseY) || ob.y1;
       let x = bx;
       let y = by;
-      if (pattern === 'circle') {
+      if (pattern === 'none') {
+        x = bx;
+        y = by;
+      } else if (pattern === 'circle') {
         x += Math.cos(tSec * speed + (Number(ob.phase) || 0)) * pathLen * 0.3;
         y += Math.sin(tSec * speed + (Number(ob.phase) || 0)) * pathLen * 0.3;
       } else {
@@ -3416,7 +3462,11 @@ function updateDynamicObstacles(hole, tSec) {
       let cx = Number(ob.baseX) || 0;
       let cy = Number(ob.baseY) || 0;
       let a = baseA;
-      if (pattern === 'circle') {
+      if (pattern === 'none') {
+        cx = Number(ob.baseX) || cx;
+        cy = Number(ob.baseY) || cy;
+        a = baseA;
+      } else if (pattern === 'circle') {
         cx += Math.cos(tSec * speed + phase) * pathLen * 0.35;
         cy += Math.sin(tSec * speed + phase) * pathLen * 0.35;
         a = tSec * speed + phase;
@@ -3424,28 +3474,64 @@ function updateDynamicObstacles(hole, tSec) {
         cx += Math.sin(tSec * speed * 1.8 + phase) * pathLen * 0.28;
         cy += Math.cos(tSec * speed * 1.1 + phase * 0.8) * pathLen * 0.28;
         a += Math.sin(tSec * speed * 1.5 + phase) * 0.6;
+      } else if (pattern === 'line') {
+        const move = speed * 1.9;
+        ob.baseX = (Number(ob.baseX) || cx) + Math.cos(baseA) * move;
+        ob.baseY = (Number(ob.baseY) || cy) + Math.sin(baseA) * move;
+        cx = Number(ob.baseX);
+        cy = Number(ob.baseY);
+        a = baseA;
       } else if (pattern === 'drift') {
         cx += Math.sin(tSec * speed * 0.42 + phase) * pathLen * 0.26;
         cy += ((tSec * speed * 18 + phase * 11) % Math.max(30, pathLen)) - Math.max(30, pathLen) * 0.5;
         a = baseA;
+      } else if (pattern === 'homing') {
+        const tx = gs.ball?.x ?? cx;
+        const ty = gs.ball?.y ?? cy;
+        const toA = Math.atan2(ty - cy, tx - cx);
+        const curA = Number.isFinite(Number(ob.homingAngle)) ? Number(ob.homingAngle) : baseA;
+        const delta = Math.atan2(Math.sin(toA - curA), Math.cos(toA - curA));
+        const loose = clamp(Number(ob.homingLoose) || 0.45, 0, 1);
+        const turn = clamp((1 - loose) * 0.24, 0.03, 0.24);
+        const nextA = curA + delta * turn;
+        ob.homingAngle = nextA;
+        const move = speed * (1.8 + (1 - loose) * 1.4);
+        ob.baseX = (Number(ob.baseX) || cx) + Math.cos(nextA) * move;
+        ob.baseY = (Number(ob.baseY) || cy) + Math.sin(nextA) * move;
+        cx = Number(ob.baseX);
+        cy = Number(ob.baseY);
+        a = nextA;
       } else {
         const travel = Math.sin(tSec * speed * 1.2 + phase) * (pathLen * 0.5);
         cx += Math.cos(a) * travel;
         cy += Math.sin(a) * travel;
       }
-      if (ob.spawner) {
-        cx += Math.cos(baseA) * ((tSec * speed * 34 + phase * 18) % Math.max(40, pathLen * 1.2) - Math.max(40, pathLen * 1.2) * 0.5);
-      }
       const perp = a + Math.PI * 0.5;
       const wing = clamp(Number(ob.wingSpan) || 14, 8, 40);
+      const spread = clamp(Number(ob.spread) || 14, 2, 80);
       const vSpread = pattern === 'v' ? 1.6 : 1;
-      ob.x1 = clamp(cx - Math.cos(perp) * wing * vSpread, 18, CW - 18);
-      ob.y1 = clamp(cy - Math.sin(perp) * wing * vSpread, 18, CH - 18);
-      ob.x2 = clamp(cx + Math.cos(perp) * wing * vSpread, 18, CW - 18);
-      ob.y2 = clamp(cy + Math.sin(perp) * wing * vSpread, 18, CH - 18);
-      if (ob.boundToMap === false) {
-        if (ob.x1 < -30 && ob.x2 < -30) ob.baseX = CW + 26;
-        else if (ob.x1 > CW + 30 && ob.x2 > CW + 30) ob.baseX = -26;
+      ob.x1 = cx - Math.cos(perp) * wing * vSpread - Math.cos(a) * spread * 0.5;
+      ob.y1 = cy - Math.sin(perp) * wing * vSpread - Math.sin(a) * spread * 0.5;
+      ob.x2 = cx + Math.cos(perp) * wing * vSpread + Math.cos(a) * spread * 0.5;
+      ob.y2 = cy + Math.sin(perp) * wing * vSpread + Math.sin(a) * spread * 0.5;
+      if (ob.spawner) {
+        const offLeft = ob.x1 < -36 && ob.x2 < -36;
+        const offRight = ob.x1 > CW + 36 && ob.x2 > CW + 36;
+        const offTop = ob.y1 < -36 && ob.y2 < -36;
+        const offBottom = ob.y1 > CH + 36 && ob.y2 > CH + 36;
+        if (offLeft || offRight || offTop || offBottom) {
+          const edge = Math.floor(Math.random() * 4);
+          if (edge === 0) { ob.baseX = -22; ob.baseY = 24 + Math.random() * (CH - 48); ob.pathAngleDeg = 0; }
+          else if (edge === 1) { ob.baseX = CW + 22; ob.baseY = 24 + Math.random() * (CH - 48); ob.pathAngleDeg = 180; }
+          else if (edge === 2) { ob.baseX = 24 + Math.random() * (CW - 48); ob.baseY = -22; ob.pathAngleDeg = 90; }
+          else { ob.baseX = 24 + Math.random() * (CW - 48); ob.baseY = CH + 22; ob.pathAngleDeg = -90; }
+          ob.phase = Math.random() * Math.PI * 2;
+        }
+      } else if (ob.boundToMap !== false) {
+        ob.x1 = clamp(ob.x1, 18, CW - 18);
+        ob.y1 = clamp(ob.y1, 18, CH - 18);
+        ob.x2 = clamp(ob.x2, 18, CW - 18);
+        ob.y2 = clamp(ob.y2, 18, CH - 18);
       }
       ob.cx = cx;
       ob.cy = cy;
@@ -3461,7 +3547,10 @@ function updateDynamicObstacles(hole, tSec) {
       const by = Number(ob.baseY) || ob.y1;
       let x = bx;
       let y = by;
-      if (pattern === 'circle') {
+      if (pattern === 'none') {
+        x = bx;
+        y = by;
+      } else if (pattern === 'circle') {
         x += Math.cos(tSec * speed + phase) * pathLen * 0.32;
         y += Math.sin(tSec * speed + phase) * pathLen * 0.32;
       } else if (pattern === 'erratic') {
@@ -3500,7 +3589,12 @@ function updateDynamicObstacles(hole, tSec) {
       const buoy = clamp(Number(ob.effectTimerSec) || 1.2, 0.2, 8);
       const prevX = ob.x1;
       const prevY = ob.y1;
-      if (pattern === 'circle') {
+      if (pattern === 'none') {
+        ob.vx = (ob.vx || 0) * 0.985;
+        ob.vy = (ob.vy || 0) * 0.985;
+        ob.x1 = ob.x1 + (ob.vx || 0);
+        ob.y1 = ob.y1 + (ob.vy || 0);
+      } else if (pattern === 'circle') {
         const bx = Number(ob.baseX) || ob.x1;
         const by = Number(ob.baseY) || ob.y1;
         const pathLen = clamp(Number(ob.pathLen) || 120, 20, 420);
@@ -3566,15 +3660,47 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
   const now = performance.now();
   for (const ob of hole.obstacles) {
     if (ob.dynamicType === 'windmill') {
-      const d = pointSegDistance(ball.x, ball.y, ob.x1, ob.y1, ob.x2, ob.y2);
-      if (d < BALL_R + 5) {
-        const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1) + Math.PI * 0.5;
+      const cx = clamp(Number(ob.pivotX) || obstacleCenter(ob).x, 18, CW - 18);
+      const cy = clamp(Number(ob.pivotY) || obstacleCenter(ob).y, 18, CH - 18);
+      const arm = clamp(Number(ob.armLen) || 40, 10, 180);
+      const blades = clamp(Math.round(Number(ob.blades) || 2), 1, 8);
+      const spinA = Number.isFinite(Number(ob.spinAngle)) ? Number(ob.spinAngle) : Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      let hit = false;
+      let hitNx = 0;
+      let hitNy = 0;
+      for (let i = 0; i < blades; i++) {
+        const a = spinA + (i * Math.PI * 2 / blades);
+        const x1 = cx - Math.cos(a) * arm;
+        const y1 = cy - Math.sin(a) * arm;
+        const x2 = cx + Math.cos(a) * arm;
+        const y2 = cy + Math.sin(a) * arm;
+        const cp = closestOnSeg(ball.x, ball.y, x1, y1, x2, y2);
+        const dx = ball.x - cp.x;
+        const dy = ball.y - cp.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d < BALL_R + 4.5) {
+          hit = true;
+          hitNx = dx / d;
+          hitNy = dy / d;
+          ball.x = cp.x + hitNx * (BALL_R + 4.6);
+          ball.y = cp.y + hitNy * (BALL_R + 4.6);
+          break;
+        }
+      }
+      if (hit) {
+        const rv = reflect(ball.vx, ball.vy, hitNx, hitNy);
+        ball.vx = rv.vx * 0.82;
+        ball.vy = rv.vy * 0.82;
+        const tangA = Math.atan2(hitNy, hitNx) + Math.PI * 0.5;
         const s = clamp(Number(ob.moveSpeed) || 1, 0.1, 5);
         const swingSec = clamp(Number(ob.swingSec) || 1.2, 0.15, 8);
         const spinFactor = clamp(1.5 / swingSec, 0.45, 2.2);
-        const push = 0.13 + s * 0.045 + spinFactor * 0.06;
-        ball.vx += Math.cos(a) * push;
-        ball.vy += Math.sin(a) * push;
+        const push = 0.12 + s * 0.04 + spinFactor * 0.05;
+        ball.vx += Math.cos(tangA) * push;
+        ball.vy += Math.sin(tangA) * push;
+        ball.vx += hitNx * 0.08;
+        ball.vy += hitNy * 0.08;
+        ball.airMs = Math.max(ball.airMs || 0, 7);
         ball.moving = true;
       }
       continue;
@@ -3586,10 +3712,12 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
       const d = dist(ball.x, ball.y, c.x, c.y);
       if (d < r + BALL_R) {
         const a = ((Number(ob.rampAngleDeg) || 0) * Math.PI) / 180;
+        const pre = Math.max(0.4, Math.hypot(ball.vx, ball.vy));
         const p = 0.14 * clamp(Number(ob.moveSpeed) || 1, 0.2, 5);
-        ball.vx = Math.cos(a) * Math.max(0.8, Math.hypot(ball.vx, ball.vy) + p);
-        ball.vy = Math.sin(a) * Math.max(0.8, Math.hypot(ball.vx, ball.vy) + p);
-        ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.5) * 280, 90, 800)));
+        const launch = Math.max(0.8, pre + p);
+        ball.vx = Math.cos(a) * launch;
+        ball.vy = Math.sin(a) * launch;
+        ball.airMs = Math.max(ball.airMs || 0, Math.round(clamp((Number(ob.effectTimerSec) || 0.5) * 240 * (0.85 + launch * 0.24), 90, 950)));
         ball.moving = true;
       }
       continue;
@@ -3600,7 +3728,7 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
       const my = Number(ob.y1);
       const r = clamp(Number(ob.radius) || 18, 8, 52);
       const d = dist(ball.x, ball.y, mx, my);
-      const trapMs = 900;
+      const trapMs = Math.round(clamp((Number(ob.carrySec) || Number(ob.effectTimerSec) || 0.9) * 1000, 120, 8000));
       if (d < r + BALL_R + 1 && ball.moving && (!ob.trapUntilMs || now > ob.trapUntilMs)) {
         ob.trapUntilMs = now + trapMs;
         ob.popKick = 0.34 + Math.random() * 0.2;
@@ -3869,7 +3997,7 @@ function physicsTick(ball, hole) {
   ball.vy *= fr;
 
   if (ball.airMs && ball.airMs > 0) {
-    ball.airMs = Math.max(0, ball.airMs - 1);
+    ball.airMs = Math.max(0, ball.airMs - (0.9 + Math.min(1.6, Math.hypot(ball.vx, ball.vy) * 0.08)));
   }
 
   // Resolve wall collisions when grounded
@@ -6083,38 +6211,48 @@ function drawObstacles(hole) {
         ctx.stroke();
       }
     } else if (ob.kind === 'windmill') {
-      const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      const a = Number.isFinite(Number(ob.spinAngle)) ? Number(ob.spinAngle) : Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
       const bladeShape = ob.bladeShape || 'windmill';
       const thick = clamp(Number(ob.bladeThickness) || 6, 2, 20);
-      const armLen = Math.max(10, dist(ob.x1, ob.y1, ob.x2, ob.y2) * 0.5);
+      const armLen = Math.max(10, Number(ob.armLen) || dist(ob.x1, ob.y1, ob.x2, ob.y2) * 0.5);
+      const blades = clamp(Math.round(Number(ob.blades) || 2), 1, 8);
+      const drawBlade = () => {
+        if (bladeShape === 'line') {
+          ctx.fillRect(-armLen, -thick * 0.5, armLen * 2, thick);
+        } else if (bladeShape === 'propeller') {
+          ctx.beginPath();
+          ctx.moveTo(-armLen * 0.9, -thick * 0.2);
+          ctx.lineTo(armLen * 0.95, -thick * 0.85);
+          ctx.lineTo(armLen, 0);
+          ctx.lineTo(armLen * 0.95, thick * 0.85);
+          ctx.lineTo(-armLen * 0.9, thick * 0.2);
+          ctx.closePath();
+          ctx.fill();
+        } else if (bladeShape === 'cog') {
+          ctx.fillRect(-armLen, -thick * 0.5, armLen * 2, thick);
+          ctx.fillStyle = obstacleAccent(ob, 'rgba(208,220,231,0.9)');
+          for (let i = -3; i <= 3; i++) {
+            ctx.fillRect((i / 3) * armLen, -thick * 0.85, 3, thick * 1.7);
+          }
+          ctx.fillStyle = obstacleColor(ob, 'rgba(228,234,240,0.94)');
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(-armLen, -thick * 0.65);
+          ctx.lineTo(armLen, -thick * 0.2);
+          ctx.lineTo(armLen, thick * 0.2);
+          ctx.lineTo(-armLen, thick * 0.65);
+          ctx.closePath();
+          ctx.fill();
+        }
+      };
       ctx.save();
       ctx.translate(mx, my);
-      ctx.rotate(a);
       ctx.fillStyle = obstacleColor(ob, 'rgba(228,234,240,0.94)');
-      if (bladeShape === 'line') {
-        ctx.fillRect(-armLen, -thick * 0.5, armLen * 2, thick);
-      } else if (bladeShape === 'propeller') {
-        ctx.beginPath();
-        ctx.moveTo(-armLen, 0);
-        ctx.lineTo(armLen * 0.75, -thick * 0.75);
-        ctx.lineTo(armLen, 0);
-        ctx.lineTo(armLen * 0.75, thick * 0.75);
-        ctx.closePath();
-        ctx.fill();
-      } else if (bladeShape === 'cog') {
-        ctx.fillRect(-armLen, -thick * 0.5, armLen * 2, thick);
-        ctx.fillStyle = obstacleAccent(ob, 'rgba(208,220,231,0.9)');
-        for (let i = -3; i <= 3; i++) {
-          ctx.fillRect((i / 3) * armLen, -thick * 0.85, 3, thick * 1.7);
-        }
-      } else {
-        ctx.beginPath();
-        ctx.moveTo(-armLen, -thick * 0.6);
-        ctx.lineTo(armLen, -thick * 0.2);
-        ctx.lineTo(armLen, thick * 0.2);
-        ctx.lineTo(-armLen, thick * 0.6);
-        ctx.closePath();
-        ctx.fill();
+      for (let i = 0; i < blades; i++) {
+        ctx.save();
+        ctx.rotate(a + i * (Math.PI * 2 / blades));
+        drawBlade();
+        ctx.restore();
       }
       ctx.restore();
       ctx.fillStyle = obstacleAccent(ob, 'rgba(230,236,240,0.9)');
@@ -6125,31 +6263,43 @@ function drawObstacles(hole) {
       const rr = clamp(Number(ob.collisionRadius) || 16, 9, 56);
       const style = Number(ob.tombstoneStyle) || 1;
       ctx.fillStyle = obstacleColor(ob, '#8e9096');
-      if (style % 2 === 0) {
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate((style - 3) * 0.09);
+      if (style === 1) {
+        roundRect(ctx, -rr * 0.72, -rr * 0.5, rr * 1.44, rr * 1.0, rr * 0.28);
+      } else if (style === 2) {
         ctx.beginPath();
-        ctx.moveTo(mx - rr * 0.72, my + rr * 0.82);
-        ctx.lineTo(mx - rr * 0.68, my - rr * 0.62);
-        ctx.quadraticCurveTo(mx, my - rr * 1.22, mx + rr * 0.68, my - rr * 0.62);
-        ctx.lineTo(mx + rr * 0.72, my + rr * 0.82);
+        ctx.ellipse(0, 0, rr * 0.78, rr * 0.5, 0, 0, Math.PI * 2);
+      } else if (style === 3) {
+        ctx.beginPath();
+        ctx.moveTo(-rr * 0.7, -rr * 0.2);
+        ctx.lineTo(rr * 0.72, -rr * 0.46);
+        ctx.lineTo(rr * 0.64, rr * 0.48);
+        ctx.lineTo(-rr * 0.62, rr * 0.42);
+        ctx.closePath();
+      } else if (style === 4) {
+        ctx.beginPath();
+        ctx.moveTo(-rr * 0.75, 0);
+        ctx.lineTo(-rr * 0.2, -rr * 0.55);
+        ctx.lineTo(rr * 0.75, 0);
+        ctx.lineTo(rr * 0.2, rr * 0.55);
         ctx.closePath();
       } else {
-        roundRect(ctx, mx - rr * 0.7, my - rr, rr * 1.4, rr * 1.9, rr * 0.35);
+        roundRect(ctx, -rr * 0.65, -rr * 0.42, rr * 1.3, rr * 0.84, rr * 0.18);
       }
       ctx.fill();
       ctx.strokeStyle = obstacleAccent(ob, '#c7ccd2');
       ctx.lineWidth = 1.2;
       ctx.stroke();
       ctx.fillStyle = 'rgba(60,64,70,0.72)';
-      if (style === 3) {
-        ctx.beginPath();
-        ctx.moveTo(mx - rr * 0.2, my - rr * 0.52);
-        ctx.lineTo(mx + rr * 0.22, my - rr * 0.2);
-        ctx.lineTo(mx - rr * 0.16, my + rr * 0.12);
-        ctx.stroke();
-      } else {
-        ctx.fillRect(mx - rr * 0.06, my - rr * 0.6, rr * 0.12, rr * 0.8);
-        ctx.fillRect(mx - rr * 0.26, my - rr * 0.26, rr * 0.52, rr * 0.12);
-      }
+      ctx.beginPath();
+      ctx.moveTo(-rr * 0.34, 0);
+      ctx.lineTo(rr * 0.34, 0);
+      ctx.moveTo(0, -rr * 0.28);
+      ctx.lineTo(0, rr * 0.28);
+      ctx.stroke();
+      ctx.restore();
     } else if (ob.kind === 'cactus') {
       const rr = clamp(Number(ob.collisionRadius) || 14, 8, 48);
       ctx.fillStyle = obstacleColor(ob, '#4f8e42');
@@ -6214,40 +6364,40 @@ function drawObstacles(hole) {
       ctx.rotate(a);
       ctx.fillStyle = obstacleColor(ob, 'rgba(89,61,43,0.95)');
       ctx.beginPath();
-      ctx.moveTo(-bodyLen * 0.48, 0);
-      ctx.lineTo(-bodyLen * 0.28, -11);
-      ctx.lineTo(bodyLen * 0.16, -13);
-      ctx.lineTo(bodyLen * 0.44, -7);
+      ctx.moveTo(-bodyLen * 0.5, 0);
+      ctx.lineTo(-bodyLen * 0.27, -13);
+      ctx.lineTo(bodyLen * 0.05, -16);
+      ctx.lineTo(bodyLen * 0.34, -13);
       ctx.lineTo(bodyLen * 0.5, 0);
-      ctx.lineTo(bodyLen * 0.44, 7);
-      ctx.lineTo(bodyLen * 0.16, 13);
-      ctx.lineTo(-bodyLen * 0.28, 11);
+      ctx.lineTo(bodyLen * 0.34, 13);
+      ctx.lineTo(bodyLen * 0.05, 16);
+      ctx.lineTo(-bodyLen * 0.27, 13);
       ctx.closePath();
       ctx.fill();
-      ctx.fillStyle = obstacleAccent(ob, `rgba(135,96,67,${0.8 - open * 0.2})`);
+      ctx.fillStyle = obstacleAccent(ob, `rgba(135,96,67,${0.85 - open * 0.2})`);
       ctx.beginPath();
-      ctx.moveTo(-bodyLen * 0.44, 0);
-      ctx.lineTo(-bodyLen * 0.25, -8);
-      ctx.lineTo(bodyLen * 0.12, -9);
-      ctx.lineTo(bodyLen * 0.39, -4);
-      ctx.lineTo(bodyLen * 0.42, 0);
-      ctx.lineTo(bodyLen * 0.39, 4);
-      ctx.lineTo(bodyLen * 0.12, 9);
-      ctx.lineTo(-bodyLen * 0.25, 8);
+      ctx.moveTo(-bodyLen * 0.43, 0);
+      ctx.lineTo(-bodyLen * 0.22, -10);
+      ctx.lineTo(bodyLen * 0.04, -12);
+      ctx.lineTo(bodyLen * 0.28, -10);
+      ctx.lineTo(bodyLen * 0.43, 0);
+      ctx.lineTo(bodyLen * 0.28, 10);
+      ctx.lineTo(bodyLen * 0.04, 12);
+      ctx.lineTo(-bodyLen * 0.22, 10);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = 'rgba(34,20,14,0.72)';
       ctx.lineWidth = 1;
       ctx.stroke();
       if (open > 0.45) {
-        const lift = 2 + open * 8;
+        const lift = 1 + open * 6;
         ctx.strokeStyle = 'rgba(36,24,18,0.88)';
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(-bodyLen * 0.16, -8 - lift);
-        ctx.lineTo(bodyLen * 0.44, -4 - lift);
-        ctx.lineTo(bodyLen * 0.44, 4 + lift);
-        ctx.lineTo(-bodyLen * 0.16, 8 + lift);
+        ctx.moveTo(-bodyLen * 0.2, -9 - lift);
+        ctx.lineTo(bodyLen * 0.36, -7 - lift);
+        ctx.lineTo(bodyLen * 0.36, 7 + lift);
+        ctx.lineTo(-bodyLen * 0.2, 9 + lift);
         ctx.closePath();
         ctx.stroke();
       }
@@ -6310,6 +6460,12 @@ function drawObstacles(hole) {
       ctx.lineTo(tipX, tipY);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = 'rgba(255,210,150,0.75)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(mx, my);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
 
       if (isActive) {
         const flameLen = clamp(Number(ob.blastRadius) || 120, 60, 220) * 0.45;
@@ -6345,6 +6501,16 @@ function drawObstacles(hole) {
           ctx.fill();
         }
       }
+      if (spoutShape !== 'jet') {
+        ctx.strokeStyle = 'rgba(255,168,106,0.58)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX + Math.cos(angle - spread * 0.5) * 30, tipY + Math.sin(angle - spread * 0.5) * 30);
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX + Math.cos(angle + spread * 0.5) * 30, tipY + Math.sin(angle + spread * 0.5) * 30);
+        ctx.stroke();
+      }
     } else if (ob.kind === 'ruins') {
       const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
       const segLen = Math.max(22, dist(ob.x1, ob.y1, ob.x2, ob.y2));
@@ -6379,6 +6545,7 @@ function drawObstacles(hole) {
       ctx.fill();
     } else if (ob.kind === 'birds') {
       const a = Math.atan2(ob.y2 - ob.y1, ob.x2 - ob.x1);
+      const spread = clamp(Number(ob.spread) || 14, 2, 80);
       ctx.save();
       ctx.translate(mx, my);
       ctx.rotate(a);
@@ -6387,7 +6554,7 @@ function drawObstacles(hole) {
       const flock = clamp(Math.round(Number(ob.count) || 3), 1, 8);
       for (let i = 0; i < flock; i++) {
         const k = i - (flock - 1) * 0.5;
-        const bx = k * 9;
+        const bx = k * (4 + spread * 0.35);
         const by = (ob.pattern === 'v' ? Math.abs(k) * 2.6 : ob.pattern === 'line' ? 0 : Math.sin(i * 1.4) * 2.2);
         const flap = Math.sin(performance.now() / 140 + i * 0.8 + (Number(ob.phase) || 0)) * 1.8;
         ctx.beginPath();
@@ -7887,6 +8054,7 @@ document.getElementById('inpObstacleCount').addEventListener('change', (e) => {
   if (ob) {
     ob.count = gs.editor.obstacleCount;
     if (ob.dynamicType === 'birds') ob.count = gs.editor.obstacleCount;
+    if (ob.dynamicType === 'windmill') ob.blades = gs.editor.obstacleCount;
     if (ob.dynamicType === 'cogs_wheel') ob.spokes = clamp(gs.editor.obstacleCount + 2, 4, 12);
     saveEditorData();
   }
@@ -7954,6 +8122,40 @@ document.getElementById('selObstacleBladeShape').addEventListener('change', (e) 
   const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
   if (ob && ob.dynamicType === 'windmill') {
     ob.bladeShape = ['line', 'windmill', 'propeller', 'cog'].includes(gs.editor.obstacleBladeShape) ? gs.editor.obstacleBladeShape : 'windmill';
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpObstacleSpread').addEventListener('change', (e) => {
+  gs.editor.obstacleSpread = clamp(Number(e.target.value) || 14, 2, 80);
+  const hole = getActiveEditorHole();
+  const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (ob && ob.dynamicType === 'birds') {
+    ob.spread = gs.editor.obstacleSpread;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpObstacleLoose').addEventListener('change', (e) => {
+  gs.editor.obstacleLoose = clamp(Number(e.target.value) || 0.45, 0, 1);
+  const hole = getActiveEditorHole();
+  const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (ob && ob.dynamicType === 'birds') {
+    ob.homingLoose = gs.editor.obstacleLoose;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('inpObstacleCarry').addEventListener('change', (e) => {
+  gs.editor.obstacleCarry = clamp(Number(e.target.value) || 0.9, 0.1, 8);
+  const hole = getActiveEditorHole();
+  const ob = hole && hole.obstacles[gs.editor.selectedObstacleIdx];
+  if (ob && ob.dynamicType === 'bubbles_trap') {
+    ob.carrySec = gs.editor.obstacleCarry;
+    ob.effectTimerSec = gs.editor.obstacleCarry;
     saveEditorData();
   }
   refreshEditorControls();
@@ -8303,6 +8505,9 @@ function gameLoop() {
   if (gs.state === State.PLAYING) {
     const ball = gs.ball;
     const hole = gs.hole;
+    if (ball.airMs && ball.airMs > 0 && !ball.moving) {
+      ball.airMs = Math.max(0, ball.airMs - 1.2);
+    }
     const underNow = !!(hole && isBallUnderFoliage(ball, hole));
     if (underNow !== !!gs.wasUnderFoliage) {
       spawnFoliageBurst(ball.x, ball.y, underNow);
