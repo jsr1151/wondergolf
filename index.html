@@ -658,7 +658,6 @@ const HAZARD_CATALOG = [
   { id: 'deep_water',  label: 'Deep Water',        elementTheme: 'beach', status: 'implemented' },
   { id: 'wave_water',  label: 'Wave Water',        elementTheme: 'beach', status: 'implemented' },
   { id: 'water_slide', label: 'Water Slide',       elementTheme: 'beach', status: 'implemented' },
-  { id: 'bubbles',     label: 'Bubbles',           elementTheme: 'underwater', status: 'implemented' },
   { id: 'ink',         label: 'Ink',               elementTheme: 'underwater', status: 'implemented' },
   { id: 'asphalt',     label: 'Asphalt',           elementTheme: 'urban', status: 'implemented' },
   { id: 'alcohol',     label: 'Alcohol',           elementTheme: 'western', status: 'implemented' },
@@ -694,6 +693,7 @@ const OBSTACLE_CATALOG = [
   { id: 'trampoline',    label: 'Trampoline',             elementTheme: 'carnival', status: 'implemented' },
   { id: 'birds',         label: 'Bird Flock',             elementTheme: 'mountain', status: 'implemented' },
   { id: 'beach_ball',    label: 'Beach Ball',             elementTheme: 'beach', status: 'implemented' },
+  { id: 'bubbles',       label: 'Bubble Trap',            elementTheme: 'underwater', status: 'implemented' },
   { id: 'coral',         label: 'Coral',                  elementTheme: 'underwater', status: 'implemented' },
   { id: 'car',           label: 'Car',                    elementTheme: 'urban', status: 'implemented' },
   { id: 'cactus',        label: 'Cactus',                 elementTheme: 'western', status: 'implemented' },
@@ -1472,12 +1472,19 @@ function refreshEditorControls() {
   if (gs.editor.selectedObstacleIdx >= hole.obstacles.length) gs.editor.selectedObstacleIdx = -1;
 
   const selectedHaz = hole.hazards[gs.editor.selectedHazardIdx] || null;
+  const flowDefaultType = selectedHaz ? selectedHaz.type : gs.editor.hazardType;
+  const defaultHazardFlow =
+    hazardMatches({ type: flowDefaultType }, ['water', 'deep_water', 'wave_water', 'koi_pond', 'conveyor', 'fan_zone'])
+      ? 'downstream'
+      : flowDefaultType === 'gravity_zone'
+        ? 'pull'
+        : 'stagnant';
   if (selectedHaz) {
     gs.editor.hazardShape = selectedHaz.shape;
     gs.editor.hazardAngle = Number(selectedHaz.angleDeg) || 0;
     gs.editor.hazardForce = clamp(Number(selectedHaz.force) || 1, 0, 3);
     gs.editor.hazardTimer = clamp(Number(selectedHaz.timerSec) || 1.5, 0.2, 8);
-    gs.editor.hazardFlow = selectedHaz.flowMode || 'stagnant';
+    gs.editor.hazardFlow = selectedHaz.flowMode || defaultHazardFlow;
     gs.editor.hazardHidden = !!selectedHaz.hiddenInPlay;
     if (selectedHaz.shape === 'circle') {
       gs.editor.hazardRadius = Math.round(selectedHaz.r || gs.editor.hazardRadius);
@@ -1490,8 +1497,8 @@ function refreshEditorControls() {
       gs.editor.hazardH = Math.round(selectedHaz.h || gs.editor.hazardH);
     }
   } else {
-    gs.editor.hazardHidden = gs.editor.hazardType === 'gravity_zone';
-    gs.editor.hazardFlow = 'stagnant';
+    gs.editor.hazardHidden = false;
+    gs.editor.hazardFlow = defaultHazardFlow;
   }
 
   selHazShape.value = gs.editor.hazardShape;
@@ -1986,6 +1993,25 @@ function placePresetObstacle(hole, c) {
     return;
   }
 
+  if (gs.editor.obstacleType === 'bubbles') {
+    const r = clamp(s * 0.18, 10, 44);
+    hole.obstacles.push({
+      x1: c.x,
+      y1: c.y,
+      x2: c.x,
+      y2: c.y,
+      kind: 'bubbles',
+      size: s,
+      dynamicType: 'bubbles_trap',
+      radius: r,
+      trapUntilMs: 0,
+      popKick: 0,
+      moveSpeed: motionSpeed,
+      phase: Math.random() * Math.PI * 2,
+    });
+    return;
+  }
+
   if (gs.editor.obstacleType === 'land_mine') {
     pushSeg(-14, 0, 14, 0);
     const ob = hole.obstacles[hole.obstacles.length - 1];
@@ -2400,8 +2426,10 @@ function applyDynamicHazardEffects(ball, hole) {
     const force = clamp(Number(hz.force) || 1, 0, 3);
     if (hazardMatches(hz, ['conveyor', 'water_slide', 'minecart', 'beanstalk'])) {
       const dir = getHazardPathDirection(hz, ball.x, ball.y);
-      ball.vx += dir.ax * 0.058 * force;
-      ball.vy += dir.ay * 0.058 * force;
+      const mode = hz.flowMode || 'downstream';
+      const flowSign = mode === 'upstream' ? -1 : 1;
+      ball.vx += dir.ax * 0.082 * force * flowSign;
+      ball.vy += dir.ay * 0.082 * force * flowSign;
     }
     if (hz.type === 'vine') {
       const dir = getHazardPathDirection(hz, ball.x, ball.y);
@@ -2416,7 +2444,9 @@ function applyDynamicHazardEffects(ball, hole) {
       ball.vy += Math.sin(a * 1.3) * 0.03 * force;
     }
     if (hz.type === 'fan_zone') {
-      const a = getHazardAngle(hz);
+      const mode = hz.flowMode || 'downstream';
+      const sign = mode === 'upstream' ? -1 : 1;
+      const a = getHazardAngle(hz) + (sign < 0 ? Math.PI : 0);
       ball.vx += Math.cos(a) * 0.11 * force;
       ball.vy += Math.sin(a) * 0.11 * force;
     }
@@ -2433,6 +2463,15 @@ function applyDynamicHazardEffects(ball, hole) {
       const swirl = 0.018 * force;
       ball.vx += (-dy / d) * swirl;
       ball.vy += (dx / d) * swirl;
+      if (d < 14) {
+        ball.vx *= 0.72;
+        ball.vy *= 0.72;
+        if (Math.hypot(ball.vx, ball.vy) < 0.18) {
+          ball.vx = 0;
+          ball.vy = 0;
+          ball.moving = false;
+        }
+      }
     }
     if (hz.type === 'lava') {
       const heat = Math.sin(now / 220 + (hz.phase || 0)) * 0.015 * force;
@@ -2704,6 +2743,7 @@ function getWalls(hole) {
     walls.push({x1: a.x, y1: a.y, x2: b.x, y2: b.y});
   }
   for (const ob of hole.obstacles) {
+    if (ob.dynamicType === 'bubbles_trap') continue;
     if ((ob.dynamicType === 'timed_gate' || ob.dynamicType === 'coffin') && (Number(ob.openFraction) || 0) > 0.6) {
       continue;
     }
@@ -2800,6 +2840,34 @@ function applyDynamicObstacleEffects(ball, hole, tSec) {
   if (!ball || !hole || !Array.isArray(hole.obstacles)) return;
   const now = performance.now();
   for (const ob of hole.obstacles) {
+    if (ob.dynamicType === 'bubbles_trap') {
+      const mx = Number(ob.x1);
+      const my = Number(ob.y1);
+      const r = clamp(Number(ob.radius) || 18, 8, 52);
+      const d = dist(ball.x, ball.y, mx, my);
+      const trapMs = 900;
+      if (d < r + BALL_R + 1 && ball.moving && (!ob.trapUntilMs || now > ob.trapUntilMs) && Math.hypot(ball.vx, ball.vy) > 0.4) {
+        ob.trapUntilMs = now + trapMs;
+        ob.popKick = 0.34 + Math.random() * 0.2;
+      }
+      if (ob.trapUntilMs && now < ob.trapUntilMs) {
+        const dx = mx - ball.x;
+        const dy = my - ball.y;
+        const dd = Math.hypot(dx, dy) || 1;
+        ball.vx += (dx / dd) * 0.06;
+        ball.vy += (dy / dd) * 0.06;
+        ball.vx *= 0.62;
+        ball.vy *= 0.62;
+        ball.moving = true;
+      } else if (ob.trapUntilMs && now >= ob.trapUntilMs) {
+        const a = now / 230 + (Number(ob.phase) || 0);
+        ball.vx += Math.cos(a) * (ob.popKick || 0.4);
+        ball.vy += Math.sin(a * 1.23) * (ob.popKick || 0.4);
+        ob.trapUntilMs = 0;
+      }
+      continue;
+    }
+
     if (ob.dynamicType === 'planet') {
       const mx = (ob.x1 + ob.x2) * 0.5;
       const my = (ob.y1 + ob.y2) * 0.5;
@@ -3201,6 +3269,25 @@ function strokePoly(poly, color, lineWidth) {
   ctx.stroke();
 }
 
+function paintCobwebClearPaths(hz) {
+  if (!Array.isArray(hz.clearPaths) || !hz.clearPaths.length) return;
+  const ts = getThemeStyle(gs.hole?.theme || 'jungle');
+  const grad = ctx.createLinearGradient(0, 0, CW, CH);
+  grad.addColorStop(0, ts.feltA);
+  grad.addColorStop(1, ts.feltB);
+  ctx.save();
+  ctx.strokeStyle = grad;
+  ctx.lineCap = 'round';
+  for (const seg of hz.clearPaths) {
+    ctx.lineWidth = (seg.w || BALL_R * 1.9) + 1;
+    ctx.beginPath();
+    ctx.moveTo(seg.x1, seg.y1);
+    ctx.lineTo(seg.x2, seg.y2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Draw a hazard zone */
 function drawHazard(hz) {
   if (hz.hiddenInPlay && gs.state !== State.EDITOR) return;
@@ -3282,14 +3369,23 @@ function drawHazard(hz) {
       if (hz.type === 'koi_pond') {
         const t = performance.now() / 1000;
         for (let i = 0; i < 3; i++) {
-          const a = t * 0.9 + i * 2.1;
-          const rr = hz.r * (0.25 + i * 0.18);
-          const fx = hz.cx + Math.cos(a) * rr;
-          const fy = hz.cy + Math.sin(a * 1.3) * rr * 0.65;
-          const fa = Math.sin(a * 1.1) * 0.9;
-          ctx.fillStyle = i % 2 ? 'rgba(255,142,92,0.78)' : 'rgba(255,235,190,0.72)';
+          const a = t * (0.45 + i * 0.07) + i * 2.4;
+          const rr = hz.r * (0.22 + i * 0.19);
+          const fx = hz.cx + Math.cos(a) * rr + Math.cos(a * 2.1) * 2;
+          const fy = hz.cy + Math.sin(a * 0.8) * rr * 0.72 + Math.sin(a * 1.7) * 2;
+          const tx = -Math.sin(a);
+          const ty = Math.cos(a * 0.8);
+          const fa = Math.atan2(ty, tx);
+          ctx.fillStyle = i % 2 ? 'rgba(255,144,88,0.82)' : 'rgba(255,236,188,0.78)';
           ctx.beginPath();
-          ctx.ellipse(fx, fy, 6.4, 3, fa, 0, Math.PI * 2);
+          ctx.ellipse(fx, fy, 7.2, 2.8, fa, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,210,155,0.72)';
+          ctx.beginPath();
+          ctx.moveTo(fx - Math.cos(fa) * 7, fy - Math.sin(fa) * 7);
+          ctx.lineTo(fx - Math.cos(fa) * 10 + Math.cos(fa + 1.2) * 3, fy - Math.sin(fa) * 10 + Math.sin(fa + 1.2) * 3);
+          ctx.lineTo(fx - Math.cos(fa) * 10 + Math.cos(fa - 1.2) * 3, fy - Math.sin(fa) * 10 + Math.sin(fa - 1.2) * 3);
+          ctx.closePath();
           ctx.fill();
         }
       }
@@ -3390,6 +3486,30 @@ function drawHazard(hz) {
       }
     }
 
+    if (hz.type === 'glass') {
+      const hp = hz.hp === undefined ? 2 : hz.hp;
+      const crack = hp <= 1 ? 0.9 : 0.5;
+      ctx.strokeStyle = `rgba(226,246,255,${crack})`;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 7; i++) {
+        const a = i * (Math.PI * 2 / 7);
+        ctx.beginPath();
+        ctx.moveTo(hz.cx, hz.cy);
+        ctx.lineTo(hz.cx + Math.cos(a) * hz.r * 0.8, hz.cy + Math.sin(a) * hz.r * 0.8);
+        ctx.stroke();
+      }
+      const t = performance.now() / 1000;
+      for (let i = 0; i < 2; i++) {
+        const y = hz.cy - hz.r * 0.7 + ((t * 58 + i * 24) % (hz.r * 1.4));
+        ctx.strokeStyle = 'rgba(246,254,255,0.42)';
+        ctx.lineWidth = 2.1;
+        ctx.beginPath();
+        ctx.moveTo(hz.cx - hz.r * 0.62, y);
+        ctx.lineTo(hz.cx + hz.r * 0.62, y - hz.r * 0.2);
+        ctx.stroke();
+      }
+    }
+
     if (hz.type === 'cobweb') {
       const c = getHazardCenter(hz);
       ctx.strokeStyle = 'rgba(240,240,255,0.62)';
@@ -3406,33 +3526,27 @@ function drawHazard(hz) {
         ctx.arc(c.x, c.y, hz.r * r, 0, Math.PI * 2);
         ctx.stroke();
       }
-      if (Array.isArray(hz.clearPaths) && hz.clearPaths.length) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.lineCap = 'round';
-        for (const seg of hz.clearPaths) {
-          ctx.lineWidth = seg.w || BALL_R * 1.9;
-          ctx.beginPath();
-          ctx.moveTo(seg.x1, seg.y1);
-          ctx.lineTo(seg.x2, seg.y2);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
+      paintCobwebClearPaths(hz);
     }
 
     if (hz.type === 'ice') {
       const t = performance.now() / 1000;
-      ctx.strokeStyle = 'rgba(255,255,255,0.62)';
-      ctx.lineWidth = 1.4;
-      for (let i = 0; i < 4; i++) {
-        const a = t * 0.9 + i * (Math.PI * 0.5);
+      ctx.strokeStyle = 'rgba(255,255,255,0.54)';
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < 6; i++) {
+        const a = i * (Math.PI / 6);
         ctx.beginPath();
-        ctx.moveTo(hz.cx + Math.cos(a) * hz.r * 0.3, hz.cy + Math.sin(a) * hz.r * 0.3);
-        ctx.lineTo(hz.cx + Math.cos(a) * hz.r * 0.8, hz.cy + Math.sin(a) * hz.r * 0.8);
+        ctx.moveTo(hz.cx + Math.cos(a) * hz.r * 0.2, hz.cy + Math.sin(a) * hz.r * 0.2);
+        ctx.lineTo(hz.cx + Math.cos(a) * hz.r * 0.78, hz.cy + Math.sin(a) * hz.r * 0.78);
         ctx.stroke();
       }
+      const shineY = hz.cy - hz.r * 0.55 + ((t * 38) % (hz.r * 1.1));
+      ctx.strokeStyle = 'rgba(250,255,255,0.45)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(hz.cx - hz.r * 0.6, shineY);
+      ctx.lineTo(hz.cx + hz.r * 0.6, shineY);
+      ctx.stroke();
     }
 
     if (hz.type === 'bubbles') {
@@ -3446,6 +3560,77 @@ function drawHazard(hz) {
         ctx.arc(hz.cx + Math.cos(a) * rr * 0.35, hz.cy + Math.sin(a * 1.2) * rr * 0.35, 2.8 + (i % 3), 0, Math.PI * 2);
         ctx.stroke();
       }
+    }
+
+    if (hz.type === 'conveyor') {
+      const t = performance.now() / 1000;
+      const dir = flowMode === 'upstream' ? -1 : 1;
+      const a = getHazardAngle(hz) + (dir < 0 ? Math.PI : 0);
+      const px = Math.cos(a + Math.PI * 0.5);
+      const py = Math.sin(a + Math.PI * 0.5);
+      ctx.fillStyle = 'rgba(215,250,255,0.82)';
+      for (let i = -1; i <= 1; i++) {
+        const prog = ((t * 1.6 + i * 0.33) % 1) - 0.5;
+        const cx = hz.cx + Math.cos(a) * prog * hz.r * 1.2 + px * i * 8;
+        const cy = hz.cy + Math.sin(a) * prog * hz.r * 1.2 + py * i * 8;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * 8, cy + Math.sin(a) * 8);
+        ctx.lineTo(cx - Math.cos(a) * 6 + px * 4, cy - Math.sin(a) * 6 + py * 4);
+        ctx.lineTo(cx - Math.cos(a) * 6 - px * 4, cy - Math.sin(a) * 6 - py * 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    if (hz.type === 'fan_zone') {
+      const t = performance.now() / 1000;
+      const dir = flowMode === 'upstream' ? -1 : 1;
+      const a = getHazardAngle(hz) + (dir < 0 ? Math.PI : 0);
+      const px = Math.cos(a + Math.PI * 0.5);
+      const py = Math.sin(a + Math.PI * 0.5);
+      ctx.strokeStyle = 'rgba(232,247,255,0.58)';
+      ctx.lineWidth = 1.5;
+      for (let lane = -2; lane <= 2; lane++) {
+        const laneOffset = lane * hz.r * 0.2;
+        ctx.beginPath();
+        for (let i = -3; i <= 3; i++) {
+          const prog = i / 3;
+          const baseX = hz.cx + Math.cos(a) * hz.r * prog * 0.78 + px * laneOffset;
+          const baseY = hz.cy + Math.sin(a) * hz.r * prog * 0.78 + py * laneOffset;
+          const wobble = Math.sin(t * 3.2 + lane * 0.8 + i * 0.7) * hz.r * 0.05;
+          const x = baseX + px * wobble;
+          const y = baseY + py * wobble;
+          if (i === -3) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(236,250,255,0.8)';
+      for (let i = -1; i <= 1; i++) {
+        const prog = ((t * 1.4 + i * 0.34) % 1) - 0.5;
+        const cx = hz.cx + Math.cos(a) * prog * hz.r * 1.12;
+        const cy = hz.cy + Math.sin(a) * prog * hz.r * 1.12;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * 7, cy + Math.sin(a) * 7);
+        ctx.lineTo(cx - Math.cos(a) * 5 + px * 3, cy - Math.sin(a) * 5 + py * 3);
+        ctx.lineTo(cx - Math.cos(a) * 5 - px * 3, cy - Math.sin(a) * 5 - py * 3);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    if (hz.type === 'asphalt') {
+      ctx.strokeStyle = 'rgba(238,220,92,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(hz.cx, hz.cy, hz.r * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = 'rgba(245,245,245,0.45)';
+      ctx.beginPath();
+      ctx.arc(hz.cx, hz.cy, hz.r * 0.68, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   } else if (hz.shape === 'ellipse') {
     const cx = hz.x + hz.w * 0.5;
@@ -3480,6 +3665,25 @@ function drawHazard(hz) {
           ctx.moveTo(cx - Math.cos(a) * rx * 0.65 + ox, cy - Math.sin(a) * ry * 0.65 + oy);
           ctx.lineTo(cx + Math.cos(a) * rx * 0.65 + ox, cy + Math.sin(a) * ry * 0.65 + oy);
           ctx.stroke();
+        }
+      }
+      if (hz.type === 'koi_pond') {
+        for (let i = 0; i < 4; i++) {
+          const drift = t * (0.65 + i * 0.07) + i * 1.6;
+          const fx = cx + Math.cos(drift + Math.sin(t + i) * 0.4) * rx * 0.56;
+          const fy = cy + Math.sin(drift * 1.17 + Math.cos(t * 0.7 + i) * 0.3) * ry * 0.52;
+          const swim = drift + Math.sin(t * 1.3 + i) * 0.35;
+          ctx.fillStyle = i % 2 ? 'rgba(255,153,98,0.82)' : 'rgba(255,236,194,0.78)';
+          ctx.beginPath();
+          ctx.ellipse(fx, fy, 7.6, 3.1, swim, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = 'rgba(255,190,130,0.72)';
+          ctx.beginPath();
+          ctx.moveTo(fx - Math.cos(swim) * 7.5, fy - Math.sin(swim) * 7.5);
+          ctx.lineTo(fx - Math.cos(swim) * 10 + Math.cos(swim + 1.16) * 2.8, fy - Math.sin(swim) * 10 + Math.sin(swim + 1.16) * 2.8);
+          ctx.lineTo(fx - Math.cos(swim) * 10 + Math.cos(swim - 1.16) * 2.8, fy - Math.sin(swim) * 10 + Math.sin(swim - 1.16) * 2.8);
+          ctx.closePath();
+          ctx.fill();
         }
       }
     }
@@ -3524,6 +3728,109 @@ function drawHazard(hz) {
           ctx.stroke();
         }
       }
+    }
+
+    if (hz.type === 'conveyor') {
+      const t = performance.now() / 1000;
+      const dir = flowMode === 'upstream' ? -1 : 1;
+      const a = getHazardAngle(hz) + (dir < 0 ? Math.PI : 0);
+      const px = Math.cos(a + Math.PI * 0.5);
+      const py = Math.sin(a + Math.PI * 0.5);
+      ctx.fillStyle = 'rgba(215,250,255,0.82)';
+      for (let i = -1; i <= 1; i++) {
+        const prog = ((t * 1.5 + i * 0.3) % 1) - 0.5;
+        const ax = cx + Math.cos(a) * prog * rx * 1.3 + px * i * 8;
+        const ay = cy + Math.sin(a) * prog * ry * 1.3 + py * i * 8;
+        ctx.beginPath();
+        ctx.moveTo(ax + Math.cos(a) * 8, ay + Math.sin(a) * 8);
+        ctx.lineTo(ax - Math.cos(a) * 6 + px * 4, ay - Math.sin(a) * 6 + py * 4);
+        ctx.lineTo(ax - Math.cos(a) * 6 - px * 4, ay - Math.sin(a) * 6 - py * 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    if (hz.type === 'fan_zone') {
+      const t = performance.now() / 1000;
+      const dir = flowMode === 'upstream' ? -1 : 1;
+      const a = getHazardAngle(hz) + (dir < 0 ? Math.PI : 0);
+      const px = Math.cos(a + Math.PI * 0.5);
+      const py = Math.sin(a + Math.PI * 0.5);
+      ctx.strokeStyle = 'rgba(232,247,255,0.58)';
+      ctx.lineWidth = 1.5;
+      for (let lane = -2; lane <= 2; lane++) {
+        const laneOffset = lane * Math.min(rx, ry) * 0.22;
+        ctx.beginPath();
+        for (let i = -3; i <= 3; i++) {
+          const prog = i / 3;
+          const baseX = cx + Math.cos(a) * rx * prog * 0.8 + px * laneOffset;
+          const baseY = cy + Math.sin(a) * ry * prog * 0.8 + py * laneOffset;
+          const wobble = Math.sin(t * 3 + lane * 0.75 + i * 0.65) * Math.min(rx, ry) * 0.05;
+          const x = baseX + px * wobble;
+          const y = baseY + py * wobble;
+          if (i === -3) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    if (hz.type === 'glass') {
+      const hp = hz.hp === undefined ? 2 : hz.hp;
+      const crack = hp <= 1 ? 0.86 : 0.5;
+      ctx.strokeStyle = `rgba(226,246,255,${crack})`;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 7; i++) {
+        const a = i * (Math.PI * 2 / 7);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + Math.cos(a) * rx * 0.82, cy + Math.sin(a) * ry * 0.82);
+        ctx.stroke();
+      }
+      const t = performance.now() / 1000;
+      for (let i = 0; i < 2; i++) {
+        const y = cy - ry * 0.74 + ((t * 56 + i * 21) % (ry * 1.5));
+        ctx.strokeStyle = 'rgba(246,254,255,0.42)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.62, y);
+        ctx.lineTo(cx + rx * 0.62, y - ry * 0.2);
+        ctx.stroke();
+      }
+    }
+
+    if (hz.type === 'ice') {
+      const t = performance.now() / 1000;
+      ctx.strokeStyle = 'rgba(255,255,255,0.56)';
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < 6; i++) {
+        const a = i * (Math.PI / 6);
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * rx * 0.2, cy + Math.sin(a) * ry * 0.2);
+        ctx.lineTo(cx + Math.cos(a) * rx * 0.78, cy + Math.sin(a) * ry * 0.78);
+        ctx.stroke();
+      }
+      const shineY = cy - ry * 0.6 + ((t * 36) % (ry * 1.2));
+      ctx.strokeStyle = 'rgba(250,255,255,0.44)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - rx * 0.62, shineY);
+      ctx.lineTo(cx + rx * 0.62, shineY);
+      ctx.stroke();
+    }
+
+    if (hz.type === 'asphalt') {
+      ctx.strokeStyle = 'rgba(238,220,92,0.62)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx * 0.36, ry * 0.36, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([7, 7]);
+      ctx.strokeStyle = 'rgba(245,245,245,0.45)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx * 0.68, ry * 0.68, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   } else if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 3) {
     ctx.beginPath();
@@ -3622,19 +3929,19 @@ function drawHazard(hz) {
 
       if (hz.type === 'koi_pond') {
         for (let i = 0; i < 4; i++) {
-          const a = t * 0.9 + i * 1.5;
-          const fx = hz.x + hz.w * (0.2 + 0.6 * ((Math.sin(a) + 1) * 0.5));
-          const fy = hz.y + hz.h * (0.2 + 0.6 * ((Math.cos(a * 1.2) + 1) * 0.5));
-          const fa = Math.sin(a * 1.1) * 0.7;
-          ctx.fillStyle = i % 2 ? 'rgba(255,142,92,0.78)' : 'rgba(255,235,190,0.72)';
+          const swim = t * (0.66 + i * 0.08) + i * 1.5;
+          const fx = hz.x + hz.w * 0.5 + Math.cos(swim + Math.sin(t + i) * 0.4) * hz.w * 0.3;
+          const fy = hz.y + hz.h * 0.5 + Math.sin(swim * 1.18 + Math.cos(t * 0.7 + i) * 0.3) * hz.h * 0.28;
+          const fa = swim + Math.sin(t * 1.2 + i) * 0.3;
+          ctx.fillStyle = i % 2 ? 'rgba(255,153,98,0.82)' : 'rgba(255,236,194,0.78)';
           ctx.beginPath();
-          ctx.ellipse(fx, fy, 7, 3.4, fa, 0, Math.PI * 2);
+          ctx.ellipse(fx, fy, 7.6, 3.1, fa, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = 'rgba(255,190,130,0.66)';
+          ctx.fillStyle = 'rgba(255,190,130,0.72)';
           ctx.beginPath();
-          ctx.moveTo(fx - Math.cos(fa) * 7, fy - Math.sin(fa) * 7);
-          ctx.lineTo(fx - Math.cos(fa) * 10 + Math.cos(fa + 1.2) * 3, fy - Math.sin(fa) * 10 + Math.sin(fa + 1.2) * 3);
-          ctx.lineTo(fx - Math.cos(fa) * 10 + Math.cos(fa - 1.2) * 3, fy - Math.sin(fa) * 10 + Math.sin(fa - 1.2) * 3);
+          ctx.moveTo(fx - Math.cos(fa) * 7.5, fy - Math.sin(fa) * 7.5);
+          ctx.lineTo(fx - Math.cos(fa) * 10 + Math.cos(fa + 1.16) * 2.8, fy - Math.sin(fa) * 10 + Math.sin(fa + 1.16) * 2.8);
+          ctx.lineTo(fx - Math.cos(fa) * 10 + Math.cos(fa - 1.16) * 2.8, fy - Math.sin(fa) * 10 + Math.sin(fa - 1.16) * 2.8);
           ctx.closePath();
           ctx.fill();
         }
@@ -3720,7 +4027,7 @@ function drawHazard(hz) {
 
     if (hz.type === 'glass') {
       const hp = hz.hp === undefined ? 2 : hz.hp;
-      const crack = hp <= 1 ? 0.8 : 0.45;
+      const crack = hp <= 1 ? 0.9 : 0.5;
       ctx.strokeStyle = `rgba(224,244,255,${crack})`;
       ctx.lineWidth = 1;
       const cx = hz.x + hz.w * 0.5;
@@ -3732,40 +4039,54 @@ function drawHazard(hz) {
         ctx.lineTo(cx + Math.cos(a) * hz.w * 0.45, cy + Math.sin(a) * hz.h * 0.45);
         ctx.stroke();
       }
-      const sheen = (Math.sin(performance.now() / 430) + 1) * 0.5;
-      ctx.fillStyle = `rgba(240,251,255,${0.12 + sheen * 0.18})`;
-      ctx.fillRect(hz.x + 4, hz.y + 4, hz.w * 0.44, hz.h - 8);
+      const t = performance.now() / 1000;
+      for (let i = 0; i < 2; i++) {
+        const y = hz.y - hz.h * 0.2 + ((t * 56 + i * 22) % (hz.h * 1.4));
+        ctx.strokeStyle = 'rgba(246,254,255,0.42)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(hz.x + 6, y);
+        ctx.lineTo(hz.x + hz.w - 6, y - hz.h * 0.2);
+        ctx.stroke();
+      }
     }
 
     if (hz.type === 'fan_zone') {
-      const a = getHazardAngle(hz);
+      const t = performance.now() / 1000;
+      const dir = flowMode === 'upstream' ? -1 : 1;
+      const a = getHazardAngle(hz) + (dir < 0 ? Math.PI : 0);
       const cx = hz.x + hz.w * 0.5;
       const cy = hz.y + hz.h * 0.5;
-      const rot = performance.now() / 360;
-      ctx.strokeStyle = 'rgba(225,241,252,0.65)';
+      const px = Math.cos(a + Math.PI * 0.5);
+      const py = Math.sin(a + Math.PI * 0.5);
+      ctx.strokeStyle = 'rgba(232,247,255,0.58)';
       ctx.lineWidth = 1.5;
-      for (let i = 0; i < 3; i++) {
-        const aa = rot + i * (Math.PI * 2 / 3);
+      for (let lane = -2; lane <= 2; lane++) {
+        const laneOffset = lane * Math.min(hz.w, hz.h) * 0.12;
         ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(aa) * 10, cy + Math.sin(aa) * 10);
+        for (let i = -3; i <= 3; i++) {
+          const prog = i / 3;
+          const baseX = cx + Math.cos(a) * hz.w * prog * 0.42 + px * laneOffset;
+          const baseY = cy + Math.sin(a) * hz.h * prog * 0.42 + py * laneOffset;
+          const wobble = Math.sin(t * 3 + lane * 0.75 + i * 0.65) * Math.min(hz.w, hz.h) * 0.05;
+          const x = baseX + px * wobble;
+          const y = baseY + py * wobble;
+          if (i === -3) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
         ctx.stroke();
       }
-      ctx.strokeStyle = 'rgba(225,241,252,0.4)';
-      for (let i = 1; i <= 4; i++) {
-        ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a) * (8 + i * 10), cy + Math.sin(a) * (8 + i * 10));
-        ctx.lineTo(cx + Math.cos(a) * (18 + i * 12), cy + Math.sin(a) * (18 + i * 12));
-        ctx.stroke();
-      }
-      ctx.strokeStyle = 'rgba(233,246,255,0.55)';
+      ctx.fillStyle = 'rgba(236,250,255,0.8)';
       for (let i = -1; i <= 1; i++) {
-        const ox = Math.cos(a + Math.PI * 0.5) * i * 9;
-        const oy = Math.sin(a + Math.PI * 0.5) * i * 9;
+        const prog = ((t * 1.4 + i * 0.34) % 1) - 0.5;
+        const ax = cx + Math.cos(a) * prog * hz.w * 0.72;
+        const ay = cy + Math.sin(a) * prog * hz.h * 0.72;
         ctx.beginPath();
-        ctx.moveTo(cx + ox - Math.cos(a) * 20, cy + oy - Math.sin(a) * 20);
-        ctx.lineTo(cx + ox + Math.cos(a) * 32, cy + oy + Math.sin(a) * 32);
-        ctx.stroke();
+        ctx.moveTo(ax + Math.cos(a) * 7, ay + Math.sin(a) * 7);
+        ctx.lineTo(ax - Math.cos(a) * 5 + px * 3, ay - Math.sin(a) * 5 + py * 3);
+        ctx.lineTo(ax - Math.cos(a) * 5 - px * 3, ay - Math.sin(a) * 5 - py * 3);
+        ctx.closePath();
+        ctx.fill();
       }
     }
 
@@ -3848,20 +4169,7 @@ function drawHazard(hz) {
         ctx.ellipse(c.x, c.y, hz.w * 0.5 * r, hz.h * 0.5 * r, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
-      if (Array.isArray(hz.clearPaths) && hz.clearPaths.length) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-        ctx.lineCap = 'round';
-        for (const seg of hz.clearPaths) {
-          ctx.lineWidth = seg.w || BALL_R * 1.9;
-          ctx.beginPath();
-          ctx.moveTo(seg.x1, seg.y1);
-          ctx.lineTo(seg.x2, seg.y2);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
+      paintCobwebClearPaths(hz);
     }
 
     if (hz.type === 'cloud') {
@@ -3877,6 +4185,7 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'ice') {
+      const t = performance.now() / 1000;
       ctx.strokeStyle = 'rgba(255,255,255,0.58)';
       ctx.lineWidth = 1;
       for (let i = 0; i < 6; i++) {
@@ -3887,6 +4196,30 @@ function drawHazard(hz) {
         ctx.lineTo(px + 6, py + 3);
         ctx.stroke();
       }
+      const shineY = hz.y + 6 + ((t * 34) % Math.max(12, hz.h - 12));
+      ctx.strokeStyle = 'rgba(250,255,255,0.42)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(hz.x + 6, shineY);
+      ctx.lineTo(hz.x + hz.w - 6, shineY);
+      ctx.stroke();
+    }
+
+    if (hz.type === 'asphalt') {
+      const cx = hz.x + hz.w * 0.5;
+      const cy = hz.y + hz.h * 0.5;
+      ctx.strokeStyle = 'rgba(238,220,92,0.62)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, hz.y + 6);
+      ctx.lineTo(cx, hz.y + hz.h - 6);
+      ctx.stroke();
+      ctx.setLineDash([8, 7]);
+      ctx.strokeStyle = 'rgba(245,245,245,0.45)';
+      ctx.beginPath();
+      ctx.rect(hz.x + 4, hz.y + 4, hz.w - 8, hz.h - 8);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
 
     if (hz.type === 'bubbles') {
@@ -3912,6 +4245,47 @@ function drawHazard(hz) {
         ctx.stroke();
       }
     }
+  }
+
+  if (hz.type === 'gravity_zone') {
+    const c = getHazardCenter(hz);
+    const mode = hz.flowMode === 'push' ? 'push' : 'pull';
+    const t = performance.now() / 1000;
+    const rx = hz.shape === 'circle' ? hz.r : Math.max(14, (hz.w || 70) * 0.5);
+    const ry = hz.shape === 'circle' ? hz.r : Math.max(14, (hz.h || 70) * 0.5);
+    const spin = mode === 'pull' ? 1 : -1;
+
+    for (let i = 0; i < 5; i++) {
+      const ring = 0.2 + i * 0.15;
+      const alpha = mode === 'pull' ? 0.24 - i * 0.03 : 0.2 - i * 0.025;
+      ctx.strokeStyle = mode === 'pull' ? `rgba(22,18,26,${Math.max(0.05, alpha)})` : `rgba(214,204,235,${Math.max(0.05, alpha)})`;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, rx * ring, ry * ring, t * 0.2 * spin, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = mode === 'pull' ? 'rgba(196,176,234,0.52)' : 'rgba(126,102,186,0.46)';
+    ctx.lineWidth = 1.2;
+    for (let arm = 0; arm < 3; arm++) {
+      ctx.beginPath();
+      for (let s = 0; s <= 22; s++) {
+        const p = s / 22;
+        const a = arm * (Math.PI * 2 / 3) + p * Math.PI * 2.2 * spin + t * 1.9 * spin;
+        const rr = (mode === 'pull' ? 1 - p : p) * 0.88;
+        const x = c.x + Math.cos(a) * rx * rr;
+        const y = c.y + Math.sin(a) * ry * rr;
+        if (s === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    const coreR = Math.max(4, Math.min(rx, ry) * 0.18);
+    ctx.fillStyle = mode === 'pull' ? 'rgba(10,8,12,0.82)' : 'rgba(210,204,231,0.68)';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, coreR, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   if (hz.type === 'flytrap') {
@@ -3948,7 +4322,7 @@ function drawHazard(hz) {
     ctx.stroke();
   }
 
-  if (gs.state === State.EDITOR && hazardMatches(hz, ['conveyor', 'water_slide', 'vine', 'minecart', 'beanstalk'])) {
+  if (gs.state === State.EDITOR && hazardMatches(hz, ['conveyor', 'fan_zone', 'gravity_zone', 'water_slide', 'vine', 'minecart', 'beanstalk'])) {
     const c = hz.shape === 'circle' ? { x: hz.cx, y: hz.cy } : { x: hz.x + hz.w / 2, y: hz.y + hz.h / 2 };
     const a = getHazardAngle(hz);
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -4516,6 +4890,29 @@ function drawObstacles(hole) {
       ctx.arc(mx + 2, my - 2, 10, 0, Math.PI * 2);
       ctx.arc(mx + 12, my + 1, 7, 0, Math.PI * 2);
       ctx.fill();
+    } else if (ob.kind === 'bubbles') {
+      const t = performance.now() / 1000;
+      const r = clamp(Number(ob.radius) || 18, 8, 52);
+      const trap = ob.trapUntilMs && performance.now() < ob.trapUntilMs;
+      const pulse = trap ? 1 + Math.sin(t * 18) * 0.08 : 1 + Math.sin(t * 3 + (Number(ob.phase) || 0)) * 0.05;
+      ctx.strokeStyle = trap ? 'rgba(231,249,255,0.96)' : 'rgba(214,243,255,0.78)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(mx, my, r * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = trap ? 'rgba(166,227,252,0.28)' : 'rgba(166,227,252,0.16)';
+      ctx.beginPath();
+      ctx.arc(mx, my, r * 0.96 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      for (let i = 0; i < 4; i++) {
+        const a = t * 1.2 + i * 1.4 + (Number(ob.phase) || 0);
+        const br = r * (0.2 + i * 0.13);
+        ctx.strokeStyle = 'rgba(240,252,255,0.6)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(mx + Math.cos(a) * br * 0.5, my + Math.sin(a * 1.2) * br * 0.45, 2 + (i % 2), 0, Math.PI * 2);
+        ctx.stroke();
+      }
     } else if (ob.kind === 'cogs') {
       const t = performance.now() / 450;
       ctx.strokeStyle = 'rgba(228,236,245,0.8)';
@@ -5889,10 +6286,9 @@ document.getElementById('selObstacleTheme').addEventListener('change', (e) => {
 
 document.getElementById('selEditorHazard').addEventListener('change', (e) => {
   gs.editor.hazardType = e.target.value;
-  if (gs.editor.hazardType === 'gravity_zone') gs.editor.hazardHidden = true;
   gs.editor.hazardPathStart = null;
-  if (hazardMatches({ type: gs.editor.hazardType }, ['water', 'deep_water', 'wave_water', 'koi_pond'])) {
-    gs.editor.hazardFlow = gs.editor.hazardFlow || 'downstream';
+  if (hazardMatches({ type: gs.editor.hazardType }, ['water', 'deep_water', 'wave_water', 'koi_pond', 'conveyor', 'fan_zone'])) {
+    if (!['downstream', 'upstream'].includes(gs.editor.hazardFlow)) gs.editor.hazardFlow = 'downstream';
   } else if (gs.editor.hazardType === 'gravity_zone') {
     gs.editor.hazardFlow = ['pull', 'push'].includes(gs.editor.hazardFlow) ? gs.editor.hazardFlow : 'pull';
   }
