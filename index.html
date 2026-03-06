@@ -488,7 +488,7 @@
             <option value="poly">Polygon</option>
           </select>
         </label>
-        <label style="font-size:0.78rem;color:var(--text-dim)">Flow / Mode
+        <label style="font-size:0.78rem;color:var(--text-dim)">Flow / Mode (Conveyor/Fan/Gravity/Water)
           <select id="selHazardFlow" style="width:100%;margin-top:4px">
             <option value="stagnant">Stagnant</option>
             <option value="downstream">Downstream</option>
@@ -506,9 +506,13 @@
         <label style="font-size:0.78rem;color:var(--text-dim)">Height
           <input id="inpHazardH" type="number" min="8" max="400" step="1" style="width:100%;margin-top:4px">
         </label>
-        <label style="font-size:0.78rem;color:var(--text-dim)">Hazard Angle
+        <label style="font-size:0.78rem;color:var(--text-dim)">Hazard Rotation Angle
           <input id="inpHazardAngle" type="number" min="-180" max="180" step="1" style="width:100%;margin-top:4px">
         </label>
+        <div style="display:flex;align-items:end;gap:6px">
+          <button class="btn btn-secondary" id="btnHazRotateL" type="button" style="padding:6px 8px;flex:1">Rotate -15</button>
+          <button class="btn btn-secondary" id="btnHazRotateR" type="button" style="padding:6px 8px;flex:1">Rotate +15</button>
+        </div>
         <label style="font-size:0.78rem;color:var(--text-dim)">Hazard Force
           <input id="inpHazardForce" type="number" min="0" max="3" step="0.1" style="width:100%;margin-top:4px">
         </label>
@@ -519,6 +523,7 @@
       <label class="editor-build-block editor-hazard-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">
         <input id="chkHazardHidden" type="checkbox" style="margin-right:6px">Invisible In Play (editor preview only)
       </label>
+      <div class="editor-build-block editor-hazard-block" id="hazardControlHint" style="font-size:0.75rem;color:var(--text-dim);line-height:1.45;margin-bottom:8px;text-align:left"></div>
       <label class="editor-build-block editor-obstacle-block" style="display:block;font-size:0.78rem;color:var(--text-dim);text-align:left;margin-bottom:8px">Obstacle Element Theme
         <select id="selObstacleTheme" style="width:100%;margin-top:4px"></select>
       </label>
@@ -1374,6 +1379,7 @@ function refreshEditorControls() {
   const inpHazForce = document.getElementById('inpHazardForce');
   const inpHazTimer = document.getElementById('inpHazardTimer');
   const chkHazHidden = document.getElementById('chkHazardHidden');
+  const hazardControlHint = document.getElementById('hazardControlHint');
   const selObs = document.getElementById('selEditorObstacle');
   const selObsTheme = document.getElementById('selObstacleTheme');
   const inpObsSize = document.getElementById('inpObstacleSize');
@@ -1564,6 +1570,14 @@ function refreshEditorControls() {
     `${hole.polygon.length} vertices · ${hole.hazards.length} hazards · ${hole.obstacles.length} obstacles · Theme ${hole.theme}. ` +
     `Hazards: ${formatThemeWithEmoji(gs.editor.hazardTheme)} · Obstacles: ${formatThemeWithEmoji(gs.editor.obstacleTheme)}. ` +
     `Pick a tool, then click/drag directly on the course to edit.`;
+
+  const activeHazType = (selectedHaz && selectedHaz.type) || gs.editor.hazardType;
+  const flowHazards = ['conveyor', 'fan_zone', 'gravity_zone', 'water', 'deep_water', 'wave_water', 'koi_pond'];
+  if (flowHazards.includes(activeHazType)) {
+    hazardControlHint.textContent = 'Conveyor/Fan/Gravity settings are in Hazards: use Flow/Mode, Hazard Angle, and Hazard Force. Select the hazard first with Select tool.';
+  } else {
+    hazardControlHint.textContent = 'To rotate hazards, use Hazard Angle or Rotate +/- buttons after selecting a hazard with Select tool.';
+  }
 
   if (hole.polygon.length > 120) {
     summary.textContent += ' Geometry is dense; smoothing will auto-optimize for performance.';
@@ -1782,16 +1796,27 @@ function createPathHazardSegment(hole, p1, p2, hzBase, widthPx) {
   const nx = -dy / len;
   const ny = dx / len;
   const half = clamp(widthPx * 0.5, 6, 110);
-  const points = [
-    { x: p1.x + nx * half, y: p1.y + ny * half },
-    { x: p2.x + nx * half, y: p2.y + ny * half },
-    { x: p2.x - nx * half, y: p2.y - ny * half },
-    { x: p1.x - nx * half, y: p1.y - ny * half },
-  ].map(p => ({ x: clamp(p.x, 10, CW - 10), y: clamp(p.y, 10, CH - 10) }));
+  const steps = clamp(Math.round(len / 24), 5, 18);
+  const left = [];
+  const right = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const coreX = p1.x + dx * t;
+    const coreY = p1.y + dy * t;
+    const sway = Math.sin(t * Math.PI) * half * 0.32;
+    const bulge = 0.8 + 0.25 * Math.sin(t * Math.PI);
+    const cx = coreX + nx * sway;
+    const cy = coreY + ny * sway;
+    left.push({ x: cx + nx * half * bulge, y: cy + ny * half * bulge });
+    right.push({ x: cx - nx * half * bulge, y: cy - ny * half * bulge });
+  }
+  const points = left.concat(right.reverse()).map(p => ({ x: clamp(p.x, 10, CW - 10), y: clamp(p.y, 10, CH - 10) }));
   const hz = {
     ...hzBase,
     shape: 'poly',
     angleDeg: Math.atan2(dy, dx) * 180 / Math.PI,
+    pathStart: { x: p1.x, y: p1.y },
+    pathEnd: { x: p2.x, y: p2.y },
     points,
   };
   syncHazardPolyBounds(hz);
@@ -1808,6 +1833,16 @@ function setHazardCenter(hz, cx, cy) {
       x: clamp(p.x + dx, 10, CW - 10),
       y: clamp(p.y + dy, 10, CH - 10),
     }));
+    if (hz.pathStart && hz.pathEnd) {
+      hz.pathStart = {
+        x: clamp(hz.pathStart.x + dx, 10, CW - 10),
+        y: clamp(hz.pathStart.y + dy, 10, CH - 10),
+      };
+      hz.pathEnd = {
+        x: clamp(hz.pathEnd.x + dx, 10, CW - 10),
+        y: clamp(hz.pathEnd.y + dy, 10, CH - 10),
+      };
+    }
     syncHazardPolyBounds(hz);
     return;
   }
@@ -2395,6 +2430,12 @@ function getHazardAngle(hz) {
 function getHazardPathDirection(hz, px, py) {
   let ax = Math.cos(getHazardAngle(hz));
   let ay = Math.sin(getHazardAngle(hz));
+  if (hz.pathStart && hz.pathEnd) {
+    const vx = hz.pathEnd.x - hz.pathStart.x;
+    const vy = hz.pathEnd.y - hz.pathStart.y;
+    const len = Math.hypot(vx, vy) || 1;
+    return { ax: vx / len, ay: vy / len };
+  }
   if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 2) {
     let best = Infinity;
     for (let i = 0; i < hz.points.length; i++) {
@@ -2496,19 +2537,21 @@ function applyDynamicHazardEffects(ball, hole) {
       const dx = c.x - ball.x;
       const dy = c.y - ball.y;
       const d = Math.hypot(dx, dy) || 1;
-      const radius = Math.max(18,
+      const radius = Math.max(26,
         hz.shape === 'circle' ? hz.r :
-        hz.shape === 'ellipse' ? Math.min(hz.w, hz.h) * 0.5 :
-        hz.shape === 'poly' ? Math.min(hz.w || 120, hz.h || 80) * 0.5 :
-        Math.min(hz.w, hz.h) * 0.5,
+        hz.shape === 'ellipse' ? Math.max(hz.w, hz.h) * 0.56 :
+        hz.shape === 'poly' ? Math.max(hz.w || 120, hz.h || 80) * 0.6 :
+        Math.max(hz.w, hz.h) * 0.56,
       );
-      const pull = 0.05 * force * clamp(1 - d / (radius + 8), 0.25, 1);
+      const pull = 0.11 * force * clamp(1 - d / (radius + 20), 0.28, 1.22);
       if (d > 1e-3) {
         ball.vx += (dx / d) * pull;
         ball.vy += (dy / d) * pull;
+        ball.vx += (dx / d) * 0.018 * force;
+        ball.vy += (dy / d) * 0.018 * force;
       }
-      ball.vx *= 0.84;
-      ball.vy *= 0.84;
+      ball.vx *= 0.77;
+      ball.vy *= 0.77;
     }
     if (hz.type === 'honey') {
       ball.vx *= 0.86;
@@ -3288,6 +3331,158 @@ function paintCobwebClearPaths(hz) {
   ctx.restore();
 }
 
+function getHazardBounds(hz) {
+  if (hz.shape === 'circle') {
+    return { x: hz.cx - hz.r, y: hz.cy - hz.r, w: hz.r * 2, h: hz.r * 2 };
+  }
+  if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 3) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of hz.points) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+  return { x: hz.x, y: hz.y, w: hz.w, h: hz.h };
+}
+
+function traceHazardPath(hz) {
+  ctx.beginPath();
+  if (hz.shape === 'circle') {
+    ctx.arc(hz.cx, hz.cy, hz.r, 0, Math.PI * 2);
+    return;
+  }
+  if (hz.shape === 'ellipse') {
+    ctx.ellipse(hz.x + hz.w * 0.5, hz.y + hz.h * 0.5, hz.w * 0.5, hz.h * 0.5, 0, 0, Math.PI * 2);
+    return;
+  }
+  if (hz.shape === 'poly' && Array.isArray(hz.points) && hz.points.length >= 3) {
+    ctx.moveTo(hz.points[0].x, hz.points[0].y);
+    for (let i = 1; i < hz.points.length; i++) ctx.lineTo(hz.points[i].x, hz.points[i].y);
+    ctx.closePath();
+    return;
+  }
+  ctx.rect(hz.x, hz.y, hz.w, hz.h);
+}
+
+function hash01(v) {
+  const s = Math.sin(v * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+function drawSlickTwinkles(hz, count = 4) {
+  const t = performance.now() / 1000;
+  const b = getHazardBounds(hz);
+  const base = (hz.phase || 0) + b.x * 0.013 + b.y * 0.021 + b.w * 0.003 + b.h * 0.005;
+  ctx.save();
+  for (let i = 0; i < count; i++) {
+    let px = b.x + b.w * 0.5;
+    let py = b.y + b.h * 0.5;
+    for (let tries = 0; tries < 10; tries++) {
+      const tx = b.x + 6 + hash01(base + i * 7.11 + tries * 0.91) * Math.max(2, b.w - 12);
+      const ty = b.y + 6 + hash01(base + i * 5.37 + tries * 1.23) * Math.max(2, b.h - 12);
+      if (inHazard(tx, ty, hz)) {
+        px = tx;
+        py = ty;
+        break;
+      }
+    }
+    const pulse = (Math.sin(t * 2.2 + i * 1.7 + base) + 1) * 0.5;
+    const arm = 2.6 + pulse * 2.6;
+    ctx.strokeStyle = `rgba(236,252,255,${0.3 + pulse * 0.55})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px - arm, py);
+    ctx.lineTo(px + arm, py);
+    ctx.moveTo(px, py - arm);
+    ctx.lineTo(px, py + arm);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawQuicksandSwirl(hz) {
+  const t = performance.now() / 1000;
+  const b = getHazardBounds(hz);
+  const c = getHazardCenter(hz);
+  const rx = Math.max(8, b.w * 0.5);
+  const ry = Math.max(8, b.h * 0.5);
+  ctx.save();
+  traceHazardPath(hz);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(98,64,33,0.46)';
+  ctx.lineWidth = 1.2;
+  for (let i = 0; i < 5; i++) {
+    const ring = 0.18 + i * 0.15;
+    const wobble = 1 + Math.sin(t * 1.4 + i * 0.8) * 0.06;
+    ctx.beginPath();
+    ctx.ellipse(c.x, c.y, rx * ring * wobble, ry * ring * (2 - wobble), t * 0.15 + i * 0.28, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(121,86,48,0.18)';
+  for (let i = 0; i < 10; i++) {
+    const px = b.x + hash01((hz.phase || 0) + i * 1.17) * b.w;
+    const py = b.y + hash01((hz.phase || 0) + i * 1.91) * b.h;
+    if (!inHazard(px, py, hz)) continue;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.4 + (i % 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawHoneycombFill(hz) {
+  const b = getHazardBounds(hz);
+  const hex = clamp(Math.min(b.w, b.h) * 0.075, 6, 14);
+  const stepX = hex * 1.55;
+  const stepY = hex * 1.34;
+  ctx.save();
+  traceHazardPath(hz);
+  ctx.clip();
+  for (let row = 0, y = b.y - stepY; y <= b.y + b.h + stepY; y += stepY, row++) {
+    const off = row % 2 ? stepX * 0.5 : 0;
+    for (let x = b.x - stepX; x <= b.x + b.w + stepX; x += stepX) {
+      const cx = x + off;
+      const cy = y;
+      ctx.fillStyle = ((row + Math.round(x / stepX)) % 2 === 0) ? 'rgba(244,194,96,0.2)' : 'rgba(207,145,48,0.1)';
+      ctx.strokeStyle = 'rgba(145,92,25,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        const px = cx + Math.cos(a) * hex * 0.56;
+        const py = cy + Math.sin(a) * hex * 0.56;
+        if (k === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawGlassSheen(hz) {
+  const t = performance.now() / 1000;
+  const b = getHazardBounds(hz);
+  ctx.save();
+  traceHazardPath(hz);
+  ctx.clip();
+  for (let i = 0; i < 3; i++) {
+    const y = b.y - b.h * 0.3 + ((t * 62 + i * (b.h * 0.44)) % (b.h * 1.9));
+    ctx.strokeStyle = 'rgba(246,254,255,0.46)';
+    ctx.lineWidth = 2.1;
+    ctx.beginPath();
+    ctx.moveTo(b.x - 10, y);
+    ctx.lineTo(b.x + b.w + 10, y - b.h * 0.22);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Draw a hazard zone */
 function drawHazard(hz) {
   if (hz.hiddenInPlay && gs.state !== State.EDITOR) return;
@@ -3404,62 +3599,15 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'quicksand') {
-      const t = performance.now() / 1000;
-      ctx.strokeStyle = 'rgba(80,50,24,0.4)';
-      ctx.lineWidth = 1.2;
-      for (let i = 0; i < 3; i++) {
-        const phase = (t * 0.45 + i * 0.22) % 1;
-        ctx.beginPath();
-        ctx.arc(hz.cx, hz.cy, Math.max(5, hz.r * (0.9 - phase * 0.65 - i * 0.09)), 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      drawQuicksandSwirl(hz);
     }
 
     if (hz.type === 'slick') {
-      const t = performance.now() / 1000;
-      ctx.strokeStyle = 'rgba(236,252,255,0.7)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 4; i++) {
-        const a = t * 0.9 + i * 1.37;
-        const px = hz.cx + Math.cos(a) * hz.r * 0.42;
-        const py = hz.cy + Math.sin(a * 1.2) * hz.r * 0.42;
-        ctx.beginPath();
-        ctx.moveTo(px - 4, py);
-        ctx.lineTo(px + 4, py);
-        ctx.moveTo(px, py - 4);
-        ctx.lineTo(px, py + 4);
-        ctx.stroke();
-      }
+      drawSlickTwinkles(hz, 5);
     }
 
     if (hz.type === 'honey') {
-      ctx.strokeStyle = 'rgba(153,97,20,0.45)';
-      ctx.lineWidth = 1;
-      const hexR = Math.max(6, hz.r * 0.13);
-      for (let i = -2; i <= 2; i++) {
-        for (let j = -1; j <= 1; j++) {
-          const cx = hz.cx + i * hexR * 1.6 + (j % 2 ? hexR * 0.8 : 0);
-          const cy = hz.cy + j * hexR * 1.35;
-          if (dist(cx, cy, hz.cx, hz.cy) > hz.r * 0.82) continue;
-          ctx.beginPath();
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * Math.PI * 2;
-            const x = cx + Math.cos(a) * hexR * 0.55;
-            const y = cy + Math.sin(a) * hexR * 0.55;
-            if (k === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
-      ctx.strokeStyle = 'rgba(236,182,88,0.5)';
-      for (let i = -1; i <= 1; i++) {
-        ctx.beginPath();
-        ctx.moveTo(hz.cx + i * 10, hz.cy + hz.r * 0.3);
-        ctx.lineTo(hz.cx + i * 10 + Math.sin(performance.now() / 360 + i) * 2, hz.cy + hz.r * 0.6);
-        ctx.stroke();
-      }
+      drawHoneycombFill(hz);
     }
 
     if (hz.type === 'lava') {
@@ -3487,27 +3635,7 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'glass') {
-      const hp = hz.hp === undefined ? 2 : hz.hp;
-      const crack = hp <= 1 ? 0.9 : 0.5;
-      ctx.strokeStyle = `rgba(226,246,255,${crack})`;
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 7; i++) {
-        const a = i * (Math.PI * 2 / 7);
-        ctx.beginPath();
-        ctx.moveTo(hz.cx, hz.cy);
-        ctx.lineTo(hz.cx + Math.cos(a) * hz.r * 0.8, hz.cy + Math.sin(a) * hz.r * 0.8);
-        ctx.stroke();
-      }
-      const t = performance.now() / 1000;
-      for (let i = 0; i < 2; i++) {
-        const y = hz.cy - hz.r * 0.7 + ((t * 58 + i * 24) % (hz.r * 1.4));
-        ctx.strokeStyle = 'rgba(246,254,255,0.42)';
-        ctx.lineWidth = 2.1;
-        ctx.beginPath();
-        ctx.moveTo(hz.cx - hz.r * 0.62, y);
-        ctx.lineTo(hz.cx + hz.r * 0.62, y - hz.r * 0.2);
-        ctx.stroke();
-      }
+      drawGlassSheen(hz);
     }
 
     if (hz.type === 'cobweb') {
@@ -3689,45 +3817,15 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'slick') {
-      const t = performance.now() / 1000;
-      ctx.strokeStyle = 'rgba(236,252,255,0.72)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 4; i++) {
-        const a = t * 0.9 + i * 1.37;
-        const px = cx + Math.cos(a) * rx * 0.52;
-        const py = cy + Math.sin(a * 1.2) * ry * 0.52;
-        ctx.beginPath();
-        ctx.moveTo(px - 4, py);
-        ctx.lineTo(px + 4, py);
-        ctx.moveTo(px, py - 4);
-        ctx.lineTo(px, py + 4);
-        ctx.stroke();
-      }
+      drawSlickTwinkles(hz, 5);
+    }
+
+    if (hz.type === 'quicksand') {
+      drawQuicksandSwirl(hz);
     }
 
     if (hz.type === 'honey') {
-      ctx.strokeStyle = 'rgba(153,97,20,0.45)';
-      ctx.lineWidth = 1;
-      const hexR = Math.max(5, Math.min(rx, ry) * 0.16);
-      for (let i = -2; i <= 2; i++) {
-        for (let j = -1; j <= 1; j++) {
-          const hx = cx + i * hexR * 1.55 + (j % 2 ? hexR * 0.8 : 0);
-          const hy = cy + j * hexR * 1.3;
-          const nx = (hx - cx) / Math.max(1, rx);
-          const ny = (hy - cy) / Math.max(1, ry);
-          if (nx * nx + ny * ny > 0.85) continue;
-          ctx.beginPath();
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * Math.PI * 2;
-            const x = hx + Math.cos(a) * hexR * 0.5;
-            const y = hy + Math.sin(a) * hexR * 0.5;
-            if (k === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
+      drawHoneycombFill(hz);
     }
 
     if (hz.type === 'conveyor') {
@@ -3776,27 +3874,7 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'glass') {
-      const hp = hz.hp === undefined ? 2 : hz.hp;
-      const crack = hp <= 1 ? 0.86 : 0.5;
-      ctx.strokeStyle = `rgba(226,246,255,${crack})`;
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 7; i++) {
-        const a = i * (Math.PI * 2 / 7);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(a) * rx * 0.82, cy + Math.sin(a) * ry * 0.82);
-        ctx.stroke();
-      }
-      const t = performance.now() / 1000;
-      for (let i = 0; i < 2; i++) {
-        const y = cy - ry * 0.74 + ((t * 56 + i * 21) % (ry * 1.5));
-        ctx.strokeStyle = 'rgba(246,254,255,0.42)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cx - rx * 0.62, y);
-        ctx.lineTo(cx + rx * 0.62, y - ry * 0.2);
-        ctx.stroke();
-      }
+      drawGlassSheen(hz);
     }
 
     if (hz.type === 'ice') {
@@ -3843,34 +3921,94 @@ function drawHazard(hz) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    if (hz.type === 'quicksand') {
+      drawQuicksandSwirl(hz);
+    }
+
+    if (hz.type === 'slick') {
+      drawSlickTwinkles(hz, 5);
+    }
+
+    if (hz.type === 'honey') {
+      drawHoneycombFill(hz);
+    }
+
     if (hazardMatches(hz, ['vine', 'water_slide', 'minecart', 'beanstalk'])) {
-      const c = getHazardCenter(hz);
-      const a = getHazardAngle(hz);
       const t = performance.now() / 1000;
+      const p1 = hz.pathStart || (() => {
+        const c = getHazardCenter(hz);
+        const a = getHazardAngle(hz);
+        return { x: c.x - Math.cos(a) * (hz.w || 120) * 0.45, y: c.y - Math.sin(a) * (hz.w || 120) * 0.45 };
+      })();
+      const p2 = hz.pathEnd || (() => {
+        const c = getHazardCenter(hz);
+        const a = getHazardAngle(hz);
+        return { x: c.x + Math.cos(a) * (hz.w || 120) * 0.45, y: c.y + Math.sin(a) * (hz.w || 120) * 0.45 };
+      })();
+      const vx = p2.x - p1.x;
+      const vy = p2.y - p1.y;
+      const plen = Math.hypot(vx, vy) || 1;
+      const ux = vx / plen;
+      const uy = vy / plen;
+      const nx = -uy;
+      const ny = ux;
+      const baseBend = Math.max(2, Math.min(8, (hz.h || 32) * 0.22));
       const lineCol = hz.type === 'water_slide' ? 'rgba(196,243,255,0.58)' : hz.type === 'minecart' ? 'rgba(212,196,164,0.6)' : 'rgba(170,235,160,0.45)';
       ctx.strokeStyle = lineCol;
       ctx.lineWidth = hz.type === 'minecart' ? 2 : 1.3;
       ctx.beginPath();
-      const n = 7;
+      const n = 11;
       for (let i = 0; i <= n; i++) {
         const k = i / n;
-        const bend = Math.sin(k * Math.PI * 3 + t * 2) * 6;
-        const px = c.x + Math.cos(a) * (k - 0.5) * (hz.w || 120) * 0.95 + Math.cos(a + Math.PI * 0.5) * bend;
-        const py = c.y + Math.sin(a) * (k - 0.5) * (hz.w || 120) * 0.95 + Math.sin(a + Math.PI * 0.5) * bend;
+        const bend = Math.sin(k * Math.PI * 2 + (hz.phase || 0)) * baseBend;
+        const px = p1.x + vx * k + nx * bend;
+        const py = p1.y + vy * k + ny * bend;
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
       ctx.stroke();
+
+      if (hz.type === 'vine' || hz.type === 'beanstalk') {
+        ctx.fillStyle = 'rgba(205,241,172,0.65)';
+        for (let i = 0; i < 4; i++) {
+          const k = (t * 0.32 + i * 0.24) % 1;
+          const bend = Math.sin(k * Math.PI * 2 + (hz.phase || 0)) * baseBend;
+          const bx = p1.x + vx * k + nx * bend;
+          const by = p1.y + vy * k + ny * bend;
+          ctx.beginPath();
+          ctx.ellipse(bx + nx * 4, by + ny * 4, 2.8, 1.6, Math.atan2(uy, ux), 0, Math.PI * 2);
+          ctx.ellipse(bx - nx * 4, by - ny * 4, 2.8, 1.6, Math.atan2(uy, ux), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
       if (hz.type === 'minecart') {
         ctx.strokeStyle = 'rgba(120,96,70,0.72)';
         for (let i = 0; i < 7; i++) {
           const k = i / 6;
-          const px = c.x + Math.cos(a) * (k - 0.5) * (hz.w || 120) * 0.9;
-          const py = c.y + Math.sin(a) * (k - 0.5) * (hz.w || 120) * 0.9;
+          const bend = Math.sin(k * Math.PI * 2 + (hz.phase || 0)) * baseBend;
+          const px = p1.x + vx * k + nx * bend;
+          const py = p1.y + vy * k + ny * bend;
           ctx.beginPath();
-          ctx.moveTo(px - Math.cos(a + Math.PI * 0.5) * 8, py - Math.sin(a + Math.PI * 0.5) * 8);
-          ctx.lineTo(px + Math.cos(a + Math.PI * 0.5) * 8, py + Math.sin(a + Math.PI * 0.5) * 8);
+          ctx.moveTo(px - nx * 8, py - ny * 8);
+          ctx.lineTo(px + nx * 8, py + ny * 8);
           ctx.stroke();
+        }
+      }
+
+      if (hz.type === 'water_slide') {
+        ctx.fillStyle = 'rgba(214,245,255,0.72)';
+        for (let i = 0; i < 4; i++) {
+          const k = (t * 0.44 + i * 0.22) % 1;
+          const bend = Math.sin(k * Math.PI * 2 + (hz.phase || 0)) * baseBend;
+          const px = p1.x + vx * k + nx * bend;
+          const py = p1.y + vy * k + ny * bend;
+          ctx.beginPath();
+          ctx.moveTo(px + ux * 6, py + uy * 6);
+          ctx.lineTo(px - ux * 5 + nx * 3, py - uy * 5 + ny * 3);
+          ctx.lineTo(px - ux * 5 - nx * 3, py - uy * 5 - ny * 3);
+          ctx.closePath();
+          ctx.fill();
         }
       }
     }
@@ -3959,6 +4097,10 @@ function drawHazard(hz) {
       }
     }
 
+    if (hz.type === 'quicksand') {
+      drawQuicksandSwirl(hz);
+    }
+
     if (hz.type === 'conveyor') {
       const a = getHazardAngle(hz);
       const dirX = Math.cos(a), dirY = Math.sin(a);
@@ -4026,29 +4168,7 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'glass') {
-      const hp = hz.hp === undefined ? 2 : hz.hp;
-      const crack = hp <= 1 ? 0.9 : 0.5;
-      ctx.strokeStyle = `rgba(224,244,255,${crack})`;
-      ctx.lineWidth = 1;
-      const cx = hz.x + hz.w * 0.5;
-      const cy = hz.y + hz.h * 0.5;
-      for (let i = 0; i < 6; i++) {
-        const a = i * (Math.PI * 2 / 6);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(a) * hz.w * 0.45, cy + Math.sin(a) * hz.h * 0.45);
-        ctx.stroke();
-      }
-      const t = performance.now() / 1000;
-      for (let i = 0; i < 2; i++) {
-        const y = hz.y - hz.h * 0.2 + ((t * 56 + i * 22) % (hz.h * 1.4));
-        ctx.strokeStyle = 'rgba(246,254,255,0.42)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(hz.x + 6, y);
-        ctx.lineTo(hz.x + hz.w - 6, y - hz.h * 0.2);
-        ctx.stroke();
-      }
+      drawGlassSheen(hz);
     }
 
     if (hz.type === 'fan_zone') {
@@ -4103,40 +4223,11 @@ function drawHazard(hz) {
     }
 
     if (hz.type === 'slick') {
-      const t = performance.now() / 1000;
-      ctx.strokeStyle = 'rgba(236,252,255,0.7)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 3; i++) {
-        const gx = hz.x + 12 + ((i * 61 + t * 32) % Math.max(12, hz.w - 24));
-        const gy = hz.y + 12 + ((i * 37 + t * 18) % Math.max(12, hz.h - 24));
-        ctx.beginPath();
-        ctx.moveTo(gx - 4, gy);
-        ctx.lineTo(gx + 4, gy);
-        ctx.moveTo(gx, gy - 4);
-        ctx.lineTo(gx, gy + 4);
-        ctx.stroke();
-      }
+      drawSlickTwinkles(hz, 4);
     }
 
     if (hz.type === 'honey') {
-      ctx.strokeStyle = 'rgba(153,97,20,0.45)';
-      ctx.lineWidth = 1;
-      const hex = 8;
-      for (let y = hz.y + 10; y <= hz.y + hz.h - 10; y += hex * 1.35) {
-        for (let x = hz.x + 10; x <= hz.x + hz.w - 10; x += hex * 1.6) {
-          const ox = ((Math.floor((y - hz.y) / (hex * 1.35)) % 2) ? hex * 0.8 : 0);
-          ctx.beginPath();
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * Math.PI * 2;
-            const px = x + ox + Math.cos(a) * hex * 0.5;
-            const py = y + Math.sin(a) * hex * 0.5;
-            if (k === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          }
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
+      drawHoneycombFill(hz);
     }
 
     if (hz.type === 'cornfield') {
@@ -5522,6 +5613,7 @@ function onPointerDown(e) {
       if (hzIdx >= 0) {
         gs.editor.selectedHazardIdx = hzIdx;
         gs.editor.selectedObstacleIdx = -1;
+        gs.editor.buildSection = 'hazard';
         gs.editor.hazardPointIdx = -1;
         const hz = hole.hazards[hzIdx];
         const hc = getHazardCenter(hz);
@@ -5534,6 +5626,7 @@ function onPointerDown(e) {
         if (obPick.idx >= 0) {
           gs.editor.selectedObstacleIdx = obPick.idx;
           gs.editor.selectedHazardIdx = -1;
+          gs.editor.buildSection = 'obstacle';
           gs.editor.hazardPointIdx = -1;
           gs.editor.dragKind = obPick.part === 'a' ? 'ob_a' : obPick.part === 'b' ? 'ob_b' : obPick.part === 'path' ? 'ob_path' : 'ob_line';
           gs.editor.dragDX = c.x;
@@ -6296,7 +6389,7 @@ document.getElementById('selEditorHazard').addEventListener('change', (e) => {
   const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
   if (hz) {
     hz.type = gs.editor.hazardType;
-    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond'])) {
+    if (hazardMatches(hz, ['water', 'deep_water', 'wave_water', 'koi_pond', 'conveyor', 'fan_zone', 'gravity_zone'])) {
       hz.flowMode = gs.editor.hazardFlow || 'downstream';
     }
     hz.hiddenInPlay = !!gs.editor.hazardHidden;
@@ -6491,6 +6584,28 @@ document.getElementById('inpHazardH').addEventListener('change', (e) => {
 
 document.getElementById('inpHazardAngle').addEventListener('change', (e) => {
   gs.editor.hazardAngle = Number(e.target.value) || 0;
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz) {
+    hz.angleDeg = gs.editor.hazardAngle;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('btnHazRotateL').addEventListener('click', () => {
+  gs.editor.hazardAngle = clamp((Number(gs.editor.hazardAngle) || 0) - 15, -180, 180);
+  const hole = getActiveEditorHole();
+  const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
+  if (hz) {
+    hz.angleDeg = gs.editor.hazardAngle;
+    saveEditorData();
+  }
+  refreshEditorControls();
+});
+
+document.getElementById('btnHazRotateR').addEventListener('click', () => {
+  gs.editor.hazardAngle = clamp((Number(gs.editor.hazardAngle) || 0) + 15, -180, 180);
   const hole = getActiveEditorHole();
   const hz = hole && hole.hazards[gs.editor.selectedHazardIdx];
   if (hz) {
